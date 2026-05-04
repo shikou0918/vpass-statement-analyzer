@@ -8,7 +8,7 @@ Vpassからエクスポートしたクレジットカード利用明細CSVを、
 
 主な目的は以下とする。
 
-- Vpass CSVをCP932/Shift_JIS系のヘッダーなしCSVとして正しく取り込む
+- Vpass CSVをCP932/Shift_JIS系CSVとして正しく取り込み、列構成を固定せずにマッピングできる
 - 明細データを外部サービスへ送信せず、ローカルDBで管理する
 - 月別支出、利用先別ランキング、カテゴリ別内訳を素早く確認できる
 - 利用先名に基づく分類ルールを蓄積し、分析の手間を減らす
@@ -21,7 +21,8 @@ Vpassからエクスポートしたクレジットカード利用明細CSVを、
 - 初期版は本人のみが利用するローカルWebアプリとする
 - PC版ChromeまたはEdgeの最新版を主対象とする
 - 認証、複数ユーザー、クラウド同期は初期スコープ外とする
-- Vpass CSVはCP932/Shift_JIS系、ヘッダーなし、1行13列の固定形式を初期想定とする
+- Vpass CSVはCP932/Shift_JIS系を想定するが、列数は固定しない
+- CSVにヘッダーがある場合はヘッダー名を優先し、ヘッダーがない場合は既知フォーマット候補からマッピングする
 - データ保存はSQLiteを基本とする
 - フロントエンドはVue 3 + TypeScript + Viteを基本とする
 - バックエンドはGo API、ORMはGORM、DBはSQLiteを基本とする
@@ -39,9 +40,9 @@ MVPスコープ:
 
 - Vpass CSVアップロード
 - CP932/Shift_JIS系CSVの読み込み
-- ヘッダーなし13列CSVの列番号マッピング
+- ヘッダー名または既知フォーマット候補に基づく項目マッピング
 - インポート前プレビュー
-- 不正行、列数不足、金額変換エラーの表示
+- 必須項目不足、マッピング不可、金額変換エラーの表示
 - 重複インポート防止
 - SQLiteへの明細保存
 - 明細一覧、検索、フィルタ、並び替え
@@ -87,7 +88,7 @@ flowchart LR
 | フロントエンド | Vue 3 + TypeScript + Vite | 実務スタックに寄せつつ、ローカルWebアプリとして画面追加しやすい |
 | スタイリング | Tailwind CSS | ダッシュボードやテーブルUIを素早く構築できる |
 | バックエンド | Go | CSV処理、文字コード変換、SQLite保存、集計APIを堅実に実装しやすい |
-| CSVパース | Go標準 `encoding/csv` + `golang.org/x/text/encoding/japanese` | CP932/Shift_JIS対応とヘッダーなしCSV処理をバックエンドに集約するため |
+| CSVパース | Go標準 `encoding/csv` + `golang.org/x/text/encoding/japanese` | CP932/Shift_JIS対応、ヘッダー有無判定、列マッピングをバックエンドに集約するため |
 | データ保存 | SQLite | 本人利用のローカルアプリに向いており、導入が軽い |
 | ORM | GORM | GoでSQLiteを扱いやすく、モデル定義とCRUDを簡潔に実装できる |
 | グラフ | Chart.js系VueラッパーまたはECharts | Vueで月次・カテゴリ別グラフを実装しやすい |
@@ -95,7 +96,7 @@ flowchart LR
 ### 2.3 採用理由
 
 - 明細データは金融情報に近いため、外部送信しないローカル保存を優先する
-- Vpass CSV固有の文字コード・列定義はインポーターに閉じ込め、将来のCSV追加に備える
+- Vpass CSV固有の文字コード・フォーマット検出・列マッピングはインポーターに閉じ込め、将来のCSV追加に備える
 - Go + GORM + SQLiteにより、ローカル実行でも履歴・分類ルール・集計を扱いやすくする
 - Vue 3 + TypeScript + Viteにより、実務スタックに近い形で画面開発を進められる
 - 分類ルールを明細データと分離し、再適用やルール改善をしやすくする
@@ -104,7 +105,7 @@ flowchart LR
 
 | 領域 | クライアント責務 | サーバー責務 |
 |---|---|---|
-| CSVアップロード | ファイル選択、プレビュー表示、実行操作 | 文字コード変換、CSVパース、検証、DB保存 |
+| CSVアップロード | ファイル選択、マッピング候補確認、プレビュー表示、実行操作 | 文字コード変換、CSVパース、フォーマット検出、項目マッピング、検証、DB保存 |
 | 明細一覧 | 検索条件入力、テーブル表示、カテゴリ変更操作 | 検索、フィルタ、並び替え、更新処理 |
 | ダッシュボード | 月選択、グラフ表示 | 月別・利用先別・カテゴリ別集計 |
 | カテゴリ管理 | カテゴリ/ルール編集UI | ルール保存、再適用、整合性チェック |
@@ -140,7 +141,7 @@ flowchart TD
 
 | 画面 | 責務 |
 |---|---|
-| インポート | CSVの読み込み、列マッピング結果の確認、エラー検出、重複判定結果の提示 |
+| インポート | CSVの読み込み、ヘッダー/列構成の検出、項目マッピング結果の確認、エラー検出、重複判定結果の提示 |
 | ダッシュボード | 支出総額、前月比、ランキング、内訳、推移を一目で確認できる状態にする |
 | 明細一覧 | 明細検索、絞り込み、並び替え、カテゴリ手動補正を行う |
 | カテゴリ・ルール管理 | カテゴリと利用先名ルールを独立管理し、既存明細へ再適用できるようにする |
@@ -155,6 +156,7 @@ flowchart TD
 |---|---|
 | Transaction | Vpass明細1行を正規化して保存する |
 | ImportFile | インポートしたCSVファイル単位の履歴を管理する |
+| ImportMapping | インポート時に検出・確定した列マッピングを管理する |
 | Category | 支出カテゴリを管理する |
 | CategoryRule | 利用先名に基づく分類ルールを管理する |
 | ImportError | インポート時の不正行・変換エラーを記録または一時保持する |
@@ -165,7 +167,8 @@ flowchart TD
 | テーブル | 主な項目 |
 |---|---|
 | transactions | id, sourceFileId, usageDate, merchantName, cardUser, paymentMethod, billingMonth, usageAmount, billedAmount, categoryId, rawColumns, dedupeKey, createdAt, updatedAt |
-| import_files | id, fileName, fileHash, rowCount, importedAt |
+| import_files | id, fileName, fileHash, detectedFormat, hasHeader, rowCount, importedAt |
+| import_mappings | id, sourceFileId, sourceColumnName, sourceColumnIndex, targetField, confidence, createdAt |
 | categories | id, name, color, createdAt, updatedAt |
 | category_rules | id, matchType, pattern, categoryId, priority, createdAt, updatedAt |
 | import_errors | id, sourceFileId, rowNumber, errorType, message, rawColumns, createdAt |
@@ -176,6 +179,7 @@ flowchart TD
 ```mermaid
 erDiagram
   import_files ||--o{ transactions : contains
+  import_files ||--o{ import_mappings : uses
   import_files ||--o{ import_errors : has
   categories ||--o{ transactions : classifies
   categories ||--o{ category_rules : target
@@ -186,7 +190,9 @@ erDiagram
 - `ImportFile.fileHash` で同一ファイルの再インポートを検出する
 - `Transaction.dedupeKey` で明細単位の重複登録を防ぐ
 - `dedupeKey` は、初期案として `usageDate + merchantName + cardUser + paymentMethod + billingMonth + usageAmount + billedAmount` から生成する
-- `rawColumns` にはVpass CSVの元13列をJSONとして保持し、将来の再解釈に備える
+- `rawColumns` にはCSVの元行をJSONとして保持し、将来の再解釈に備える
+- `ImportMapping` は、ヘッダー名または列位置から確定した `usageDate`、`merchantName`、`billingMonth`、`usageAmount`、`billedAmount` などの対応関係を保存する
+- 必須項目は `usageDate`、`merchantName`、`billingMonth`、`usageAmount` または `billedAmount` とし、不足時は保存せずプレビューで確認させる
 - `CategoryRule.priority` により複数ルール一致時の適用順を制御する
 - カテゴリ削除時は、紐づく明細の `categoryId` を未分類へ戻す
 - ファイル単位削除時は、対象 `ImportFile` に紐づく `Transaction` と `ImportError` を削除対象とする
@@ -219,13 +225,15 @@ sequenceDiagram
   User->>UI: CSVファイルを選択
   UI->>API: プレビュー要求
   API->>Parser: 文字コード変換・CSVパース
-  Parser->>Parser: 13列チェック・型変換・エラー検出
-  Parser-->>API: previewRows / errors / fileHash
+  Parser->>Parser: ヘッダー有無判定・フォーマット検出・項目マッピング
+  Parser->>Parser: 必須項目チェック・型変換・エラー検出
+  Parser-->>API: mappingCandidates / previewRows / errors / fileHash
   API->>DB: fileHash重複確認
-  API-->>UI: プレビューと検証結果を返却
+  API-->>UI: マッピング候補、プレビュー、検証結果を返却
   User->>UI: インポート実行
   UI->>API: 保存要求
   API->>DB: ImportFile作成
+  API->>DB: ImportMapping作成
   API->>DB: dedupeKey未登録のTransaction保存
   API->>DB: ImportError保存
   API-->>UI: 保存件数・スキップ件数を返却
@@ -251,7 +259,7 @@ sequenceDiagram
 
 | 処理 | 方針 |
 |---|---|
-| CSVプレビュー | DB保存前に文字コード変換、列数検証、型変換、重複候補検出を行う |
+| CSVプレビュー | DB保存前に文字コード変換、ヘッダー有無判定、フォーマット検出、項目マッピング、型変換、重複候補検出を行う |
 | CSV保存 | `ImportFile` と `Transaction` をトランザクションで保存する |
 | 重複判定 | ファイル単位は `fileHash`、明細単位は `dedupeKey` を使う |
 | 明細検索 | 年月、利用先、カテゴリ、金額範囲、キーワードで絞り込む |
@@ -260,12 +268,60 @@ sequenceDiagram
 | 集計 | DBクエリまたはアプリケーションサービスで集計し、画面向け形式へ整形する |
 | エクスポート | 明細、カテゴリ、分類ルールをJSONまたはCSVで出力できるようにする |
 
+#### APIエンドポイント案
+
+初期版はローカル実行のGo APIとして、`/api/v1` 配下にエンドポイントを定義する。詳細なリクエスト/レスポンス項目は詳細設計で確定するが、概要設計では画面とバックエンド責務が分かる粒度まで定義する。
+
+| 区分 | Method | Path | 概要 |
+|---|---|---|---|
+| ヘルスチェック | GET | `/api/v1/health` | Go APIの起動状態を確認する |
+| CSVインポート | POST | `/api/v1/imports/preview` | CSVファイルを受け取り、文字コード変換・パース・マッピング候補・検証結果を返す。DB保存はしない |
+| CSVインポート | POST | `/api/v1/imports` | プレビュー済みCSVを保存し、ImportFile/Transaction/ImportErrorを作成する |
+| インポート履歴 | GET | `/api/v1/imports` | インポート済みファイル一覧を取得する |
+| インポート履歴 | GET | `/api/v1/imports/{importFileId}` | インポートファイル単位の件数、エラー、取り込み結果を取得する |
+| インポート履歴 | DELETE | `/api/v1/imports/{importFileId}` | 指定ファイル由来の明細とエラーを削除する |
+| 明細 | GET | `/api/v1/transactions` | 年月、利用先、カテゴリ、金額範囲、キーワードで明細を検索する |
+| 明細 | GET | `/api/v1/transactions/{transactionId}` | 明細1件の詳細を取得する |
+| 明細 | PATCH | `/api/v1/transactions/{transactionId}` | 明細のカテゴリなど、編集可能項目を更新する |
+| ダッシュボード | GET | `/api/v1/summary/monthly` | 対象月の支出合計、前月比、日別推移を取得する |
+| ダッシュボード | GET | `/api/v1/summary/merchants` | 対象期間の利用先別ランキングを取得する |
+| ダッシュボード | GET | `/api/v1/summary/categories` | 対象期間のカテゴリ別内訳を取得する |
+| 分析 | GET | `/api/v1/analysis/monthly-trends` | 月別支出推移を取得する |
+| 分析 | GET | `/api/v1/analysis/merchant-trends` | 利用先別の月次推移を取得する |
+| 分析 | GET | `/api/v1/analysis/category-trends` | カテゴリ別の月次推移を取得する |
+| 分析 | GET | `/api/v1/analysis/recurring-candidates` | 固定費候補を抽出する |
+| 分析 | GET | `/api/v1/analysis/small-frequent` | 少額高頻度支出候補を抽出する |
+| カテゴリ | GET | `/api/v1/categories` | カテゴリ一覧を取得する |
+| カテゴリ | POST | `/api/v1/categories` | カテゴリを作成する |
+| カテゴリ | PATCH | `/api/v1/categories/{categoryId}` | カテゴリ名・色を更新する |
+| カテゴリ | DELETE | `/api/v1/categories/{categoryId}` | カテゴリを削除し、紐づく明細を未分類へ戻す |
+| 分類ルール | GET | `/api/v1/category-rules` | 分類ルール一覧を取得する |
+| 分類ルール | POST | `/api/v1/category-rules` | 利用先名に基づく分類ルールを作成する |
+| 分類ルール | PATCH | `/api/v1/category-rules/{ruleId}` | 分類ルールの条件、カテゴリ、優先度を更新する |
+| 分類ルール | DELETE | `/api/v1/category-rules/{ruleId}` | 分類ルールを削除する |
+| 分類ルール | POST | `/api/v1/category-rules/reapply` | 既存明細に分類ルールを再適用する |
+| データ管理 | GET | `/api/v1/exports/transactions` | 明細データをCSVまたはJSONでエクスポートする |
+| データ管理 | GET | `/api/v1/exports/categories` | カテゴリ定義をJSONでエクスポートする |
+| データ管理 | GET | `/api/v1/exports/category-rules` | 分類ルールをJSONでエクスポートする |
+| 設定 | GET | `/api/v1/settings` | 集計基準などのアプリ設定を取得する |
+| 設定 | PATCH | `/api/v1/settings` | 集計基準などのアプリ設定を更新する |
+
+API設計上の補足:
+
+- 初期版はローカル利用のため認証なしとするが、クラウド化時に `/api/v1` 配下へ認証ミドルウェアを追加できる構成にする
+- 一覧取得APIは `page`、`pageSize`、`sort`、`order` を共通クエリとして扱う
+- 集計APIは `month`、`from`、`to`、`basis` を共通クエリとして扱う。`basis` は `billingMonth` / `usageDate`、金額基準は `billedAmount` / `usageAmount` を想定する
+- インポート実行APIは、プレビューで確定したマッピングを受け取り、サーバー側で再検証してから保存する
+- エラー応答は `{ code, message, details }` の共通形式にする
+- CSVアップロード系APIでは、実明細データをログに出力しない
+
 ### 5.4 エラーハンドリング
 
 | ケース | 処理方針 |
 |---|---|
 | 文字コード変換失敗 | CSV形式・文字コードが想定外であることを表示する |
-| 列数不足/超過 | 行番号、列数、元データをプレビュー上に表示する |
+| 必須項目不足 | 利用日、利用先、支払月、金額など必須項目にマッピングできない場合、保存せずプレビュー上に表示する |
+| マッピング不確定 | ヘッダー名や列位置から項目を確定できない場合、ユーザーが画面上で対応項目を選べるようにする |
 | 日付変換エラー | 対象行を保存対象外にし、修正不能行として表示する |
 | 金額変換エラー | カンマ、空文字、符号を考慮し、それでも失敗した場合はエラー行にする |
 | 同一ファイル再インポート | 既に取り込み済みであることを表示し、保存を止める |
@@ -278,7 +334,7 @@ sequenceDiagram
 
 | 入力 | 内容 | 設計方針 |
 |---|---|---|
-| Vpass CSV | CP932/Shift_JIS系、ヘッダーなし、13列固定形式 | Vpass CSV Importerで専用処理する |
+| Vpass CSV | CP932/Shift_JIS系。ヘッダー有無や列数は固定しない | Vpass CSV Importerで文字コード、ヘッダー有無、フォーマット、項目マッピングを検出する |
 | ユーザー操作 | カテゴリ変更、ルール作成、フィルタ条件 | UIからAPIへ送信する |
 
 ### 6.2 外部出力
@@ -315,7 +371,7 @@ sequenceDiagram
 
 ### 7.3 保守性
 
-- Vpass固有の列定義、文字コード、日付/金額変換はインポーターに閉じ込める
+- Vpass固有のフォーマット検出、項目マッピング、文字コード、日付/金額変換はインポーターに閉じ込める
 - 分類ルールは明細データとは独立して管理する
 - 集計ロジックは画面コンポーネントから分離し、分析サービスとして再利用可能にする
 - 将来のCSV形式追加に備え、インポーターの共通インターフェースを用意する
@@ -377,7 +433,7 @@ vpass-statement-analyzer/
 | Go + Vue構成 | フロントエンドとバックエンドを分離する | 実務スタックに寄せつつ、CSV処理と画面責務を明確に分けるため |
 | SQLite採用 | 明細、カテゴリ、ルール、履歴をローカルDBへ保存 | 本人利用・数千件規模に対して軽量で十分なため |
 | GORM採用 | Go側でSQLiteアクセスとモデル管理を行う | CRUD実装を簡潔にし、Go API内でDB責務を完結させるため |
-| Vpass専用Importer | 文字コード、ヘッダーなし13列、列マッピングを専用モジュールに分離 | 他CSV追加時に影響範囲を限定するため |
+| Vpass専用Importer | 文字コード、ヘッダー有無判定、フォーマット検出、項目マッピングを専用モジュールに分離 | CSVの列構成を固定せず、他CSV追加時にも影響範囲を限定するため |
 | プレビュー後保存 | CSVを即保存せず、検証結果を見せてから保存する | 不正行や文字化け、列ズレを早期発見するため |
 | 二段階重複判定 | ファイル単位と明細単位で重複を防ぐ | 同じCSV再投入と複数CSV間の重複の両方を避けるため |
 | 分類ルール分離 | CategoryRuleをTransactionから独立管理 | ルール改善と再適用を可能にするため |
@@ -393,14 +449,15 @@ vpass-statement-analyzer/
 | Suicaチャージ | 交通費か電子マネーチャージか | カテゴリ分類ルールと分析解釈が変わる |
 | デスクトップアプリ化 | ローカルWebアプリのままか、将来デスクトップ化するか | 配布方法、DB保存場所、バックアップ導線が変わる |
 | 手動分類の優先度 | ルール再適用時に手動カテゴリを上書きするか | 再適用処理とユーザー確認UIが変わる |
+| CSVマッピングUI | マッピング不確定時にユーザーが列対応を修正できるようにするか | インポート画面の複雑さと対応可能CSV形式が変わる |
 
 ## 11. 要件トレーサビリティ
 
 | 要件 | 設計での反映 |
 |---|---|
 | CP932/Shift_JIS CSV読み込み | Vpass CSV Importer、Encoding処理、CSVプレビュー |
-| ヘッダーなし13列マッピング | インポーターの列番号ベース変換、`rawColumns`保持 |
-| 不正行・金額変換エラー表示 | ImportError、プレビュー画面、エラーハンドリング |
+| 列構成を固定しないCSV取り込み | ヘッダー有無判定、フォーマット検出、ImportMapping、`rawColumns`保持 |
+| 必須項目不足・金額変換エラー表示 | ImportError、プレビュー画面、エラーハンドリング |
 | 重複登録防止 | `fileHash`、`dedupeKey`、保存時スキップ |
 | 明細一覧 | 明細一覧画面、transactionsテーブル、検索/フィルタAPI |
 | ダッシュボード | 集計サービス、月別合計、前月比、ランキング、グラフ |
