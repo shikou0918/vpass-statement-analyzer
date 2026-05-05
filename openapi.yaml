@@ -1,0 +1,1351 @@
+openapi: 3.1.0
+info:
+  title: Vpass明細分析API
+  version: 0.1.0
+  description: Vpassのクレジットカード明細CSVをローカル環境で取り込み、検索・分類・集計・分析するためのAPI。
+servers:
+  - url: http://localhost:8080
+    description: ローカル開発環境
+tags:
+  - name: Import
+    description: CSVプレビュー、インポート保存、インポート履歴
+  - name: Transactions
+    description: 明細の検索、取得、更新
+  - name: Summaries
+    description: ダッシュボード向け集計
+  - name: Analytics
+    description: 長期傾向や支出候補の分析
+  - name: Categories
+    description: 支出カテゴリ管理
+  - name: CategoryRules
+    description: 利用先名に基づく分類ルール管理
+  - name: Exports
+    description: 明細、カテゴリ、分類ルールのエクスポート
+  - name: Settings
+    description: アプリ設定
+paths:
+  /import-previews:
+    post:
+      operationId: createImportPreview
+      tags: [Import]
+      summary: CSVを保存せずにプレビューする
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                sourceType:
+                  $ref: "#/components/schemas/ImportSourceType"
+      responses:
+        "200":
+          description: インポートプレビュー結果
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportPreview"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /imports:
+    get:
+      operationId: listImports
+      tags: [Import]
+      summary: インポート済みファイル一覧を取得する
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/PageSizeParam"
+      responses:
+        "200":
+          description: インポート済みファイル一覧
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportFileListResponse"
+    post:
+      operationId: createImport
+      tags: [Import]
+      summary: 確定したCSVプレビューから明細を保存する
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateImportRequest"
+      responses:
+        "201":
+          description: インポートを作成した
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateImportResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /imports/{importFileId}:
+    parameters:
+      - $ref: "#/components/parameters/ImportFileIdParam"
+    get:
+      operationId: getImport
+      tags: [Import]
+      summary: インポート詳細を取得する
+      responses:
+        "200":
+          description: インポート詳細
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportDetail"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteImport
+      tags: [Import]
+      summary: インポートと紐づく明細を削除する
+      responses:
+        "204":
+          description: インポートを削除した
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /transactions:
+    get:
+      operationId: listTransactions
+      tags: [Transactions]
+      summary: 明細を検索する
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/PageSizeParam"
+        - $ref: "#/components/parameters/SortParam"
+        - $ref: "#/components/parameters/OrderParam"
+        - name: billingMonth
+          in: query
+          schema:
+            type: string
+            pattern: "^\\d{4}-\\d{2}$"
+          example: "2026-05"
+        - name: usageDateFrom
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: usageDateTo
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: merchantName
+          in: query
+          schema:
+            type: string
+        - name: categoryId
+          in: query
+          schema:
+            type: string
+        - name: keyword
+          in: query
+          schema:
+            type: string
+        - name: amountMin
+          in: query
+          schema:
+            type: integer
+        - name: amountMax
+          in: query
+          schema:
+            type: integer
+        - name: includeExcluded
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          description: 明細一覧
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransactionListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /transactions/{transactionId}:
+    parameters:
+      - $ref: "#/components/parameters/TransactionIdParam"
+    get:
+      operationId: getTransaction
+      tags: [Transactions]
+      summary: 明細詳細を取得する
+      responses:
+        "200":
+          description: 明細詳細
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateTransaction
+      tags: [Transactions]
+      summary: 明細の編集可能項目を更新する
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTransactionRequest"
+      responses:
+        "200":
+          description: 更新後の明細
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /summaries/monthly:
+    get:
+      operationId: getMonthlySummary
+      tags: [Summaries]
+      summary: 月次サマリーを取得する
+      parameters:
+        - $ref: "#/components/parameters/MonthParam"
+        - $ref: "#/components/parameters/BasisDateParam"
+        - $ref: "#/components/parameters/BasisAmountParam"
+      responses:
+        "200":
+          description: 月次サマリー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MonthlySummary"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /summaries/merchants:
+    get:
+      operationId: getMerchantSummary
+      tags: [Summaries]
+      summary: 利用先別ランキングを取得する
+      parameters:
+        - $ref: "#/components/parameters/FromParam"
+        - $ref: "#/components/parameters/ToParam"
+        - $ref: "#/components/parameters/BasisDateParam"
+        - $ref: "#/components/parameters/BasisAmountParam"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+      responses:
+        "200":
+          description: 利用先別サマリー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RankingSummary"
+
+  /summaries/categories:
+    get:
+      operationId: getCategorySummary
+      tags: [Summaries]
+      summary: カテゴリ別内訳を取得する
+      parameters:
+        - $ref: "#/components/parameters/FromParam"
+        - $ref: "#/components/parameters/ToParam"
+        - $ref: "#/components/parameters/BasisDateParam"
+        - $ref: "#/components/parameters/BasisAmountParam"
+      responses:
+        "200":
+          description: カテゴリ別サマリー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategorySummary"
+
+  /analytics/monthly-trends:
+    get:
+      operationId: getMonthlyTrends
+      tags: [Analytics]
+      summary: 月別支出推移を取得する
+      parameters:
+        - $ref: "#/components/parameters/FromMonthParam"
+        - $ref: "#/components/parameters/ToMonthParam"
+        - $ref: "#/components/parameters/BasisAmountParam"
+      responses:
+        "200":
+          description: 月別推移データ
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrendResponse"
+
+  /analytics/merchant-trends:
+    get:
+      operationId: getMerchantTrends
+      tags: [Analytics]
+      summary: 利用先別推移を取得する
+      parameters:
+        - $ref: "#/components/parameters/FromMonthParam"
+        - $ref: "#/components/parameters/ToMonthParam"
+        - name: merchantName
+          in: query
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/BasisAmountParam"
+      responses:
+        "200":
+          description: 利用先別推移データ
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrendResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /analytics/category-trends:
+    get:
+      operationId: getCategoryTrends
+      tags: [Analytics]
+      summary: カテゴリ別推移を取得する
+      parameters:
+        - $ref: "#/components/parameters/FromMonthParam"
+        - $ref: "#/components/parameters/ToMonthParam"
+        - name: categoryId
+          in: query
+          schema:
+            type: string
+        - $ref: "#/components/parameters/BasisAmountParam"
+      responses:
+        "200":
+          description: カテゴリ別推移データ
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrendResponse"
+
+  /analytics/recurring-candidates:
+    get:
+      operationId: listRecurringCandidates
+      tags: [Analytics]
+      summary: 固定費候補を取得する
+      parameters:
+        - $ref: "#/components/parameters/FromMonthParam"
+        - $ref: "#/components/parameters/ToMonthParam"
+      responses:
+        "200":
+          description: 固定費候補一覧
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/RecurringCandidate"
+
+  /analytics/small-frequent-transactions:
+    get:
+      operationId: listSmallFrequentTransactions
+      tags: [Analytics]
+      summary: 少額高頻度支出候補を取得する
+      parameters:
+        - $ref: "#/components/parameters/FromParam"
+        - $ref: "#/components/parameters/ToParam"
+        - name: maxAmount
+          in: query
+          schema:
+            type: integer
+            default: 1000
+      responses:
+        "200":
+          description: 少額高頻度支出候補一覧
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SmallFrequentCandidate"
+
+  /categories:
+    get:
+      operationId: listCategories
+      tags: [Categories]
+      summary: カテゴリ一覧を取得する
+      responses:
+        "200":
+          description: カテゴリ一覧
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Category"
+    post:
+      operationId: createCategory
+      tags: [Categories]
+      summary: カテゴリを作成する
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCategoryRequest"
+      responses:
+        "201":
+          description: カテゴリを作成した
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /categories/{categoryId}:
+    parameters:
+      - $ref: "#/components/parameters/CategoryIdParam"
+    patch:
+      operationId: updateCategory
+      tags: [Categories]
+      summary: カテゴリを更新する
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCategoryRequest"
+      responses:
+        "200":
+          description: 更新後のカテゴリ
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteCategory
+      tags: [Categories]
+      summary: カテゴリを削除する
+      responses:
+        "204":
+          description: カテゴリを削除した
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /category-rules:
+    get:
+      operationId: listCategoryRules
+      tags: [CategoryRules]
+      summary: 分類ルール一覧を取得する
+      responses:
+        "200":
+          description: 分類ルール一覧
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/CategoryRule"
+    post:
+      operationId: createCategoryRule
+      tags: [CategoryRules]
+      summary: 分類ルールを作成する
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCategoryRuleRequest"
+      responses:
+        "201":
+          description: 分類ルールを作成した
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryRule"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /category-rules/{categoryRuleId}:
+    parameters:
+      - $ref: "#/components/parameters/CategoryRuleIdParam"
+    patch:
+      operationId: updateCategoryRule
+      tags: [CategoryRules]
+      summary: 分類ルールを更新する
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCategoryRuleRequest"
+      responses:
+        "200":
+          description: 更新後の分類ルール
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryRule"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteCategoryRule
+      tags: [CategoryRules]
+      summary: 分類ルールを削除する
+      responses:
+        "204":
+          description: 分類ルールを削除した
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /category-rule-applications:
+    post:
+      operationId: createCategoryRuleApplication
+      tags: [CategoryRules]
+      summary: 既存明細へ分類ルールを適用する
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCategoryRuleApplicationRequest"
+      responses:
+        "200":
+          description: 分類ルール適用結果
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryRuleApplicationResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /exports/transactions:
+    get:
+      operationId: exportTransactions
+      tags: [Exports]
+      summary: 明細をエクスポートする
+      parameters:
+        - name: format
+          in: query
+          schema:
+            $ref: "#/components/schemas/ExportFormat"
+        - $ref: "#/components/parameters/FromParam"
+        - $ref: "#/components/parameters/ToParam"
+      responses:
+        "200":
+          description: エクスポートした明細
+          content:
+            text/csv:
+              schema:
+                type: string
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransactionListResponse"
+
+  /exports/categories:
+    get:
+      operationId: exportCategories
+      tags: [Exports]
+      summary: カテゴリをJSONでエクスポートする
+      responses:
+        "200":
+          description: エクスポートしたカテゴリ
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Category"
+
+  /exports/category-rules:
+    get:
+      operationId: exportCategoryRules
+      tags: [Exports]
+      summary: 分類ルールをJSONでエクスポートする
+      responses:
+        "200":
+          description: エクスポートした分類ルール
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/CategoryRule"
+
+  /settings:
+    get:
+      operationId: getSettings
+      tags: [Settings]
+      summary: アプリ設定を取得する
+      responses:
+        "200":
+          description: アプリ設定
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppSettings"
+    patch:
+      operationId: updateSettings
+      tags: [Settings]
+      summary: アプリ設定を更新する
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSettingsRequest"
+      responses:
+        "200":
+          description: 更新後のアプリ設定
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppSettings"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+components:
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        default: 1
+        minimum: 1
+    PageSizeParam:
+      name: pageSize
+      in: query
+      schema:
+        type: integer
+        default: 50
+        minimum: 1
+        maximum: 200
+    SortParam:
+      name: sort
+      in: query
+      schema:
+        type: string
+    OrderParam:
+      name: order
+      in: query
+      schema:
+        type: string
+        enum: [asc, desc]
+        default: desc
+    ImportFileIdParam:
+      name: importFileId
+      in: path
+      required: true
+      schema:
+        type: string
+    TransactionIdParam:
+      name: transactionId
+      in: path
+      required: true
+      schema:
+        type: string
+    CategoryIdParam:
+      name: categoryId
+      in: path
+      required: true
+      schema:
+        type: string
+    CategoryRuleIdParam:
+      name: categoryRuleId
+      in: path
+      required: true
+      schema:
+        type: string
+    MonthParam:
+      name: month
+      in: query
+      required: true
+      schema:
+        type: string
+        pattern: "^\\d{4}-\\d{2}$"
+    FromParam:
+      name: from
+      in: query
+      schema:
+        type: string
+        format: date
+    ToParam:
+      name: to
+      in: query
+      schema:
+        type: string
+        format: date
+    FromMonthParam:
+      name: fromMonth
+      in: query
+      schema:
+        type: string
+        pattern: "^\\d{4}-\\d{2}$"
+    ToMonthParam:
+      name: toMonth
+      in: query
+      schema:
+        type: string
+        pattern: "^\\d{4}-\\d{2}$"
+    BasisDateParam:
+      name: basisDate
+      in: query
+      schema:
+        $ref: "#/components/schemas/BasisDate"
+    BasisAmountParam:
+      name: basisAmount
+      in: query
+      schema:
+        $ref: "#/components/schemas/BasisAmount"
+
+  responses:
+    BadRequest:
+      description: リクエスト形式が不正
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: 対象リソースが存在しない
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Conflict:
+      description: リソース競合
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    ValidationError:
+      description: 業務検証エラー
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+
+    Pagination:
+      type: object
+      required: [page, pageSize, totalItems, totalPages]
+      properties:
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        totalItems:
+          type: integer
+        totalPages:
+          type: integer
+
+    ImportSourceType:
+      type: string
+      enum: [vpass]
+      default: vpass
+
+    ImportPreview:
+      type: object
+      required:
+        - previewId
+        - fileName
+        - fileHash
+        - detectedFormat
+        - encoding
+        - hasHeader
+        - mappingCandidates
+        - previewRows
+        - errors
+        - duplicateFile
+      properties:
+        previewId:
+          type: string
+          description: 一時的なプレビュー参照ID。有効期限や保持方式は実装時に決める。
+        fileName:
+          type: string
+        fileHash:
+          type: string
+        detectedFormat:
+          type: string
+          example: vpass-default
+        encoding:
+          type: string
+          example: CP932
+        hasHeader:
+          type: boolean
+        mappingCandidates:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImportMappingCandidate"
+        previewRows:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImportPreviewRow"
+        errors:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImportRowError"
+        duplicateFile:
+          type: boolean
+
+    ImportMappingCandidate:
+      type: object
+      required: [targetField, sourceColumnIndex, confidence]
+      properties:
+        targetField:
+          $ref: "#/components/schemas/ImportTargetField"
+        sourceColumnName:
+          type:
+            - string
+            - "null"
+        sourceColumnIndex:
+          type: integer
+          minimum: 0
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+
+    ImportTargetField:
+      type: string
+      enum:
+        - usageDate
+        - merchantName
+        - cardUser
+        - paymentMethod
+        - billingMonth
+        - usageAmount
+        - billedAmount
+
+    ImportPreviewRow:
+      type: object
+      required: [rowNumber, rawColumns, normalized]
+      properties:
+        rowNumber:
+          type: integer
+        rawColumns:
+          type: array
+          items:
+            type: string
+        normalized:
+          $ref: "#/components/schemas/TransactionNormalizedFields"
+        warnings:
+          type: array
+          items:
+            type: string
+
+    ImportRowError:
+      type: object
+      required: [rowNumber, errorType, message]
+      properties:
+        rowNumber:
+          type: integer
+        errorType:
+          type: string
+          enum: [encoding, parse, requiredField, dateConversion, amountConversion, mapping, duplicate]
+        message:
+          type: string
+        rawColumns:
+          type: array
+          items:
+            type: string
+
+    CreateImportRequest:
+      type: object
+      required: [previewId, fileHash, confirmedMapping]
+      properties:
+        previewId:
+          type: string
+        fileHash:
+          type: string
+        confirmedMapping:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/ConfirmedImportMapping"
+        options:
+          type: object
+          properties:
+            applyCategoryRules:
+              type: boolean
+              default: true
+
+    ConfirmedImportMapping:
+      type: object
+      required: [targetField, sourceColumnIndex]
+      properties:
+        targetField:
+          $ref: "#/components/schemas/ImportTargetField"
+        sourceColumnName:
+          type:
+            - string
+            - "null"
+        sourceColumnIndex:
+          type: integer
+          minimum: 0
+
+    CreateImportResponse:
+      type: object
+      required: [importFile, importedCount, skippedDuplicateCount, errorCount]
+      properties:
+        importFile:
+          $ref: "#/components/schemas/ImportFile"
+        importedCount:
+          type: integer
+        skippedDuplicateCount:
+          type: integer
+        errorCount:
+          type: integer
+
+    ImportFile:
+      type: object
+      required: [id, fileName, fileHash, detectedFormat, hasHeader, rowCount, importedAt]
+      properties:
+        id:
+          type: string
+        fileName:
+          type: string
+        fileHash:
+          type: string
+        detectedFormat:
+          type: string
+        hasHeader:
+          type: boolean
+        rowCount:
+          type: integer
+        importedAt:
+          type: string
+          format: date-time
+
+    ImportFileListResponse:
+      type: object
+      required: [items, pagination]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImportFile"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    ImportDetail:
+      allOf:
+        - $ref: "#/components/schemas/ImportFile"
+        - type: object
+          required: [transactionCount, errorCount, mappings, errors]
+          properties:
+            transactionCount:
+              type: integer
+            errorCount:
+              type: integer
+            mappings:
+              type: array
+              items:
+                $ref: "#/components/schemas/ConfirmedImportMapping"
+            errors:
+              type: array
+              items:
+                $ref: "#/components/schemas/ImportRowError"
+
+    Transaction:
+      allOf:
+        - $ref: "#/components/schemas/TransactionNormalizedFields"
+        - type: object
+          required: [id, sourceFileId, rawColumns, dedupeKey, createdAt, updatedAt]
+          properties:
+            id:
+              type: string
+            sourceFileId:
+              type: string
+            category:
+              anyOf:
+                - $ref: "#/components/schemas/Category"
+                - type: "null"
+            memo:
+              type:
+                - string
+                - "null"
+            excludedFromAnalytics:
+              type: boolean
+              default: false
+            rawColumns:
+              type: array
+              items:
+                type: string
+            dedupeKey:
+              type: string
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+
+    TransactionNormalizedFields:
+      type: object
+      required: [usageDate, merchantName, billingMonth]
+      properties:
+        usageDate:
+          type: string
+          format: date
+        merchantName:
+          type: string
+        cardUser:
+          type:
+            - string
+            - "null"
+        paymentMethod:
+          type:
+            - string
+            - "null"
+        billingMonth:
+          type: string
+          pattern: "^\\d{4}-\\d{2}$"
+        usageAmount:
+          type:
+            - integer
+            - "null"
+        billedAmount:
+          type:
+            - integer
+            - "null"
+        categoryId:
+          type:
+            - string
+            - "null"
+
+    TransactionListResponse:
+      type: object
+      required: [items, pagination]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Transaction"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    UpdateTransactionRequest:
+      type: object
+      properties:
+        categoryId:
+          type:
+            - string
+            - "null"
+        memo:
+          type:
+            - string
+            - "null"
+        excludedFromAnalytics:
+          type: boolean
+
+    BasisDate:
+      type: string
+      enum: [billingMonth, usageDate]
+      default: billingMonth
+
+    BasisAmount:
+      type: string
+      enum: [billedAmount, usageAmount]
+      default: billedAmount
+
+    MonthlySummary:
+      type: object
+      required: [month, totalAmount, previousMonthDelta, daily]
+      properties:
+        month:
+          type: string
+          pattern: "^\\d{4}-\\d{2}$"
+        totalAmount:
+          type: integer
+        previousMonthDelta:
+          type: integer
+        daily:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChartPoint"
+
+    RankingSummary:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required: [label, amount, count]
+            properties:
+              label:
+                type: string
+              amount:
+                type: integer
+              count:
+                type: integer
+
+    CategorySummary:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required: [categoryId, categoryName, amount, count]
+            properties:
+              categoryId:
+                type:
+                  - string
+                  - "null"
+              categoryName:
+                type: string
+              amount:
+                type: integer
+              count:
+                type: integer
+
+    TrendResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChartPoint"
+
+    ChartPoint:
+      type: object
+      required: [label, amount]
+      properties:
+        label:
+          type: string
+        amount:
+          type: integer
+        count:
+          type: integer
+
+    RecurringCandidate:
+      type: object
+      required: [merchantName, averageAmount, occurrenceMonths]
+      properties:
+        merchantName:
+          type: string
+        averageAmount:
+          type: integer
+        occurrenceMonths:
+          type: integer
+        categoryId:
+          type:
+            - string
+            - "null"
+
+    SmallFrequentCandidate:
+      type: object
+      required: [merchantName, totalAmount, count]
+      properties:
+        merchantName:
+          type: string
+        totalAmount:
+          type: integer
+        count:
+          type: integer
+        averageAmount:
+          type: integer
+
+    Category:
+      type: object
+      required: [id, name, color, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        color:
+          type: string
+          pattern: "^#[0-9A-Fa-f]{6}$"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateCategoryRequest:
+      type: object
+      required: [name, color]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        color:
+          type: string
+          pattern: "^#[0-9A-Fa-f]{6}$"
+
+    UpdateCategoryRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        color:
+          type: string
+          pattern: "^#[0-9A-Fa-f]{6}$"
+
+    CategoryRule:
+      type: object
+      required: [id, matchType, pattern, categoryId, priority, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        matchType:
+          $ref: "#/components/schemas/CategoryRuleMatchType"
+        pattern:
+          type: string
+        categoryId:
+          type: string
+        priority:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CategoryRuleMatchType:
+      type: string
+      enum: [contains, startsWith, equals, regex]
+
+    CreateCategoryRuleRequest:
+      type: object
+      required: [matchType, pattern, categoryId, priority]
+      properties:
+        matchType:
+          $ref: "#/components/schemas/CategoryRuleMatchType"
+        pattern:
+          type: string
+          minLength: 1
+        categoryId:
+          type: string
+        priority:
+          type: integer
+
+    UpdateCategoryRuleRequest:
+      type: object
+      properties:
+        matchType:
+          $ref: "#/components/schemas/CategoryRuleMatchType"
+        pattern:
+          type: string
+          minLength: 1
+        categoryId:
+          type: string
+        priority:
+          type: integer
+
+    CreateCategoryRuleApplicationRequest:
+      type: object
+      required: [scope, overwriteManualCategory]
+      properties:
+        scope:
+          type: string
+          enum: [all, filtered]
+        filters:
+          type: object
+          properties:
+            billingMonth:
+              type: string
+              pattern: "^\\d{4}-\\d{2}$"
+            categoryId:
+              type: string
+            merchantName:
+              type: string
+        overwriteManualCategory:
+          type: boolean
+
+    CategoryRuleApplicationResult:
+      type: object
+      required: [matchedCount, updatedCount, unchangedCount, uncategorizedCount]
+      properties:
+        matchedCount:
+          type: integer
+        updatedCount:
+          type: integer
+        unchangedCount:
+          type: integer
+        uncategorizedCount:
+          type: integer
+
+    ExportFormat:
+      type: string
+      enum: [csv, json]
+      default: csv
+
+    AppSettings:
+      type: object
+      required: [basisDate, basisAmount]
+      properties:
+        basisDate:
+          $ref: "#/components/schemas/BasisDate"
+        basisAmount:
+          $ref: "#/components/schemas/BasisAmount"
+
+    UpdateSettingsRequest:
+      type: object
+      properties:
+        basisDate:
+          $ref: "#/components/schemas/BasisDate"
+        basisAmount:
+          $ref: "#/components/schemas/BasisAmount"
