@@ -6,8 +6,10 @@ COPY package*.json ./
 RUN npm ci
 
 COPY . .
+RUN chown -R node:node /app
 
 EXPOSE 5173
 
-CMD ["npm", "run", "dev:docker"]
+USER node
 
+CMD ["npm", "run", "dev:docker"]
