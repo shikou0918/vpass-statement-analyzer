@@ -843,7 +843,7 @@ components:
 
     ImportMappingCandidate:
       type: object
-      required: [targetField, sourceColumnIndex, confidence]
+      required: [targetField, sourceColumnIndex]
       properties:
         targetField:
           $ref: "#/components/schemas/ImportTargetField"
@@ -854,10 +854,13 @@ components:
         sourceColumnIndex:
           type: integer
           minimum: 0
-        confidence:
-          type: number
-          minimum: 0
-          maximum: 1
+        sampleValues:
+          type: array
+          description: その列の先頭数行の値。マッピング確認のために表示する。
+          items:
+            type: string
+        required:
+          type: boolean
 
     ImportTargetField:
       type: string

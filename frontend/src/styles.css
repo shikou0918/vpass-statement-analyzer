@@ -337,6 +337,50 @@ h2 {
   background: #e2e8f0;
 }
 
+.csv-preview {
+  margin-top: 16px;
+}
+
+.csv-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.csv-grid-wrap {
+  max-height: 360px;
+  overflow: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+}
+
+.csv-grid {
+  min-width: 960px;
+}
+
+.csv-grid th,
+.csv-grid td {
+  max-width: 260px;
+  white-space: nowrap;
+}
+
+.csv-grid thead th,
+.csv-grid tbody th {
+  position: sticky;
+  background: #f8fafc;
+  z-index: 1;
+}
+
+.csv-grid thead th {
+  top: 0;
+}
+
+.csv-grid tbody th {
+  left: 0;
+}
+
 .form-panel {
   display: grid;
   max-width: 420px;

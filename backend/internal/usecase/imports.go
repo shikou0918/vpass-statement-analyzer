@@ -75,7 +75,7 @@ func (a *App) CreateImportPreview(ctx context.Context, fileName string, r io.Rea
 
 	candidates := inferMapping(header, rows)
 	errors := validateRows(rows, candidates)
-	previewRows := buildPreviewRows(rows, candidates, 10)
+	previewRows := buildPreviewRows(rows, candidates, 50)
 	previewID := fmt.Sprintf("%x", sha256.Sum256([]byte(fileHash+time.Now().String())))[:24]
 
 	preview := ImportPreview{
@@ -227,12 +227,11 @@ func inferMapping(header []string, rows [][]string) []ImportMappingCandidate {
 		if i < len(header) && strings.TrimSpace(header[i]) != "" {
 			name = strings.TrimSpace(header[i])
 		}
-		target, confidence := inferTarget(name, i)
+		target := inferTarget(name, i)
 		candidates = append(candidates, ImportMappingCandidate{
 			SourceColumnName:  name,
 			SourceColumnIndex: i,
 			TargetField:       target,
-			Confidence:        confidence,
 			SampleValues:      sampleValues(rows, i),
 			Required:          isRequiredTarget(target),
 		})
@@ -240,29 +239,29 @@ func inferMapping(header []string, rows [][]string) []ImportMappingCandidate {
 	return candidates
 }
 
-func inferTarget(name string, index int) (string, string) {
+func inferTarget(name string, index int) string {
 	n := strings.ToLower(name)
 	switch {
 	case strings.Contains(name, "利用日") || strings.Contains(n, "date"):
-		return "usageDate", "high"
+		return "usageDate"
 	case strings.Contains(name, "利用先") || strings.Contains(name, "店") || strings.Contains(n, "merchant"):
-		return "merchantName", "high"
+		return "merchantName"
 	case strings.Contains(name, "支払") || strings.Contains(name, "請求月"):
-		return "billingMonth", "high"
+		return "billingMonth"
 	case strings.Contains(name, "利用金額"):
-		return "usageAmount", "high"
+		return "usageAmount"
 	case strings.Contains(name, "請求金額") || strings.Contains(name, "支払金額"):
-		return "billedAmount", "high"
+		return "billedAmount"
 	case strings.Contains(name, "本人") || strings.Contains(name, "家族") || strings.Contains(name, "利用者"):
-		return "cardUser", "medium"
+		return "cardUser"
 	case strings.Contains(name, "支払区分") || strings.Contains(name, "支払方法"):
-		return "paymentMethod", "medium"
+		return "paymentMethod"
 	}
-	known := map[int]string{0: "usageDate", 1: "merchantName", 2: "paymentMethod", 3: "billingMonth", 4: "usageAmount", 5: "billedAmount"}
+	known := map[int]string{0: "usageDate", 1: "merchantName", 2: "cardUser", 3: "paymentMethod", 5: "billingMonth", 6: "usageAmount", 7: "billedAmount"}
 	if target, ok := known[index]; ok {
-		return target, "low"
+		return target
 	}
-	return "", "none"
+	return ""
 }
 
 func sampleValues(rows [][]string, index int) []string {
@@ -432,7 +431,13 @@ func parseDate(s string) (time.Time, error) {
 }
 
 func normalizeMonth(s string) string {
-	s = strings.TrimSpace(strings.ReplaceAll(s, "/", "-"))
+	s = strings.TrimSpace(strings.ReplaceAll(strings.TrimPrefix(s, "'"), "/", "-"))
+	if strings.Count(s, "-") == 1 {
+		parts := strings.Split(s, "-")
+		if len(parts) == 2 && len(parts[0]) == 2 {
+			s = "20" + parts[0] + "-" + parts[1]
+		}
+	}
 	if t, err := time.Parse("2006-01", s); err == nil {
 		return t.Format("2006-01")
 	}

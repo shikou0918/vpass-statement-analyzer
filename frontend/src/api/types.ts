@@ -15,7 +15,6 @@ export type ImportMappingCandidate = {
   sourceColumnName?: string
   sourceColumnIndex: number
   targetField: string
-  confidence: 'high' | 'medium' | 'low' | 'none' | string
   sampleValues: string[]
   required: boolean
 }
@@ -123,4 +122,3 @@ export type ListResponse<T> = {
   items: T[]
   pagination?: Pagination
 }
-

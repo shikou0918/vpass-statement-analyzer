@@ -22,7 +22,6 @@ type ImportMappingCandidate struct {
 	SourceColumnName  string   `json:"sourceColumnName,omitempty"`
 	SourceColumnIndex int      `json:"sourceColumnIndex"`
 	TargetField       string   `json:"targetField"`
-	Confidence        string   `json:"confidence"`
 	SampleValues      []string `json:"sampleValues"`
 	Required          bool     `json:"required"`
 }

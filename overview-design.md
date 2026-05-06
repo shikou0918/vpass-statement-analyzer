@@ -168,7 +168,7 @@ flowchart TD
 |---|---|
 | transactions | id, sourceFileId, usageDate, merchantName, cardUser, paymentMethod, billingMonth, usageAmount, billedAmount, categoryId, rawColumns, dedupeKey, createdAt, updatedAt |
 | import_files | id, fileName, fileHash, detectedFormat, hasHeader, rowCount, importedAt |
-| import_mappings | id, sourceFileId, sourceColumnName, sourceColumnIndex, targetField, confidence, createdAt |
+| import_mappings | id, sourceFileId, sourceColumnName, sourceColumnIndex, targetField, createdAt |
 | categories | id, name, color, createdAt, updatedAt |
 | category_rules | id, matchType, pattern, categoryId, priority, createdAt, updatedAt |
 | import_errors | id, sourceFileId, rowNumber, errorType, message, rawColumns, createdAt |

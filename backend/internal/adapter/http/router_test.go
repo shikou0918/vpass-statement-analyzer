@@ -122,6 +122,51 @@ func TestImportPreviewAndDuplicateImport(t *testing.T) {
 	}
 }
 
+func TestHeaderlessVpassImportFormat(t *testing.T) {
+	router := newTestServer(t)
+	csvBody := strings.Join([]string{
+		"2026/4/30,セブン－イレブン,ご本人,1回払い,,'26/05,213,213,,,,,",
+		"2026/4/30,キャッシュバック（ポイント交換）,ご本人,,,'26/05,-30000,-30000,,,,,",
+	}, "\n") + "\n"
+
+	preview := createPreview(t, router, csvBody)
+	if preview.DuplicateFile {
+		t.Fatal("first preview should not be duplicate")
+	}
+	if len(preview.PreviewRows) != 2 {
+		t.Fatalf("expected 2 preview rows, got %d", len(preview.PreviewRows))
+	}
+	if got := strings.Join(preview.PreviewRows[0].RawColumns, ","); got != "2026/4/30,セブン－イレブン,ご本人,1回払い,,'26/05,213,213,,,,," {
+		t.Fatalf("unexpected raw preview row: %s", got)
+	}
+
+	mapping := map[string]string{}
+	for _, candidate := range preview.MappingCandidates {
+		mapping[strconv.Itoa(candidate.SourceColumnIndex)] = candidate.TargetField
+	}
+	importReqBody, err := json.Marshal(map[string]any{
+		"previewId":        preview.PreviewID,
+		"fileHash":         preview.FileHash,
+		"confirmedMapping": mapping,
+		"options": map[string]any{
+			"applyCategoryRules": true,
+		},
+	})
+	if err != nil {
+		t.Fatalf("marshal import request: %v", err)
+	}
+	importReq := httptest.NewRequest(http.MethodPost, "/imports", bytes.NewReader(importReqBody))
+	importReq.Header.Set("Content-Type", "application/json")
+	importRes := httptest.NewRecorder()
+	router.ServeHTTP(importRes, importReq)
+	if importRes.Code != http.StatusCreated {
+		t.Fatalf("expected status 201, got %d: %s", importRes.Code, importRes.Body.String())
+	}
+	if !strings.Contains(importRes.Body.String(), `"importedCount":2`) {
+		t.Fatalf("expected importedCount 2, got %s", importRes.Body.String())
+	}
+}
+
 func createPreview(t *testing.T, router http.Handler, csvBody string) importPreviewResponse {
 	t.Helper()
 	var body bytes.Buffer
@@ -160,9 +205,14 @@ type importPreviewResponse struct {
 	FileHash          string                   `json:"fileHash"`
 	DuplicateFile     bool                     `json:"duplicateFile"`
 	MappingCandidates []importMappingCandidate `json:"mappingCandidates"`
+	PreviewRows       []importPreviewRow       `json:"previewRows"`
 }
 
 type importMappingCandidate struct {
 	SourceColumnIndex int    `json:"sourceColumnIndex"`
 	TargetField       string `json:"targetField"`
+}
+
+type importPreviewRow struct {
+	RawColumns []string `json:"rawColumns"`
 }

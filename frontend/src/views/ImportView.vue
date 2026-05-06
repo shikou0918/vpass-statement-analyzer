@@ -14,23 +14,9 @@ const saveMessage = ref('')
 const previewState = useAsyncState<ImportPreview>()
 const importState = useAsyncState<unknown>()
 
-const targetFields = [
-  { value: '', label: '未使用' },
-  { value: 'usageDate', label: '利用日' },
-  { value: 'merchantName', label: '利用先' },
-  { value: 'billingMonth', label: '請求月' },
-  { value: 'usageAmount', label: '利用金額' },
-  { value: 'billedAmount', label: '請求金額' },
-  { value: 'cardUser', label: '利用者' },
-  { value: 'paymentMethod', label: '支払方法' },
-]
-
-const confidenceLabels: Record<string, string> = {
-  high: '高',
-  medium: '中',
-  low: '低',
-  none: '未確定',
-}
+const previewColumnCount = computed(() => {
+  return Math.max(0, ...(preview.value?.previewRows.map((row) => row.rawColumns.length) ?? [0]))
+})
 
 const missingRequired = computed(() => {
   const targets = new Set(Object.values(confirmedMapping.value).filter(Boolean))
@@ -104,29 +90,29 @@ async function saveImport() {
       <p v-if="preview.duplicateFile" class="warning-line">同一ファイルが保存済みです。保存はできません。</p>
       <p v-if="missingRequired.length > 0" class="warning-line">不足: {{ missingRequired.join(', ') }}</p>
 
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>列</th>
-              <th>サンプル</th>
-              <th>取込先項目</th>
-              <th>信頼度</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="candidate in preview.mappingCandidates" :key="candidate.sourceColumnIndex">
-              <td>{{ candidate.sourceColumnName }}</td>
-              <td>{{ candidate.sampleValues.join(' / ') }}</td>
-              <td>
-                <select v-model="confirmedMapping[String(candidate.sourceColumnIndex)]">
-                  <option v-for="field in targetFields" :key="field.value" :value="field.value">{{ field.label }}</option>
-                </select>
-              </td>
-              <td><span class="badge">{{ confidenceLabels[candidate.confidence] ?? candidate.confidence }}</span></td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="csv-preview">
+        <div class="csv-preview-header">
+          <h2>CSV行プレビュー</h2>
+          <span class="muted">先頭{{ preview.previewRows.length }}行</span>
+        </div>
+        <div class="csv-grid-wrap">
+          <table class="csv-grid">
+            <thead>
+              <tr>
+                <th>行</th>
+                <th v-for="columnIndex in previewColumnCount" :key="columnIndex">列 {{ columnIndex }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in preview.previewRows" :key="row.rowNumber">
+                <th>{{ row.rowNumber }}</th>
+                <td v-for="columnIndex in previewColumnCount" :key="columnIndex">
+                  {{ row.rawColumns[columnIndex - 1] ?? '' }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div class="toolbar right">
