@@ -6,9 +6,11 @@ services:
       APP_ADDR: ":8080"
       DATABASE_PATH: "/data/vpass.db"
       ALLOWED_ORIGIN: "http://localhost:5173"
+      GOCACHE: "/tmp/go-build"
     ports:
       - "8080:8080"
     volumes:
+      - ./backend:/app
       - backend-data:/data
 
   frontend:
@@ -16,11 +18,15 @@ services:
       context: ./frontend
     environment:
       VITE_API_BASE_URL: "http://localhost:8080"
+      CHOKIDAR_USEPOLLING: "true"
     ports:
       - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - frontend-node-modules:/app/node_modules
     depends_on:
       - backend
 
 volumes:
   backend-data:
-
+  frontend-node-modules:

@@ -16,4 +16,4 @@ EXPOSE 8080
 
 USER appuser
 
-CMD ["go", "run", "./cmd/server"]
+CMD ["go", "run", "./cmd/dev"]

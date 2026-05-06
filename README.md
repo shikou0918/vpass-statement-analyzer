@@ -24,6 +24,8 @@ docker-compose up --build
 
 フロントエンドは `http://localhost:5173`、APIは `http://localhost:8080` で起動します。SQLite DBはDocker volume `vpass-statement-analyzer_backend-data` に保存されます。
 
+Docker Compose起動中は、`frontend/` の変更はVite HMRでブラウザへ反映され、`backend/` のGoファイル変更は開発用ウォッチャーが検知してAPIサーバを再起動します。
+
 ローカルで個別に起動する場合:
 
 ```sh
