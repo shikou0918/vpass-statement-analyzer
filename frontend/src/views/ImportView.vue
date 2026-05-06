@@ -29,19 +29,23 @@ const missingRequired = computed(() => {
 
 async function onSelect(event: Event) {
   const input = event.target as HTMLInputElement
-  file.value = input.files?.[0] ?? null
+  const selectedFile = input.files?.[0] ?? null
+  file.value = selectedFile
   preview.value = null
+  confirmedMapping.value = {}
   saveMessage.value = ''
+  if (selectedFile) {
+    await previewFile(selectedFile)
+  }
 }
 
 function openFileDialog() {
   fileInput.value?.click()
 }
 
-async function previewFile() {
-  if (!file.value) return
-  const result = await previewState.run(() => createImportPreview(file.value as File))
-  if (!result) return
+async function previewFile(selectedFile: File) {
+  const result = await previewState.run(() => createImportPreview(selectedFile))
+  if (!result || file.value !== selectedFile) return
   preview.value = result
   confirmedMapping.value = Object.fromEntries(
     result.mappingCandidates.map((candidate: ImportMappingCandidate) => [String(candidate.sourceColumnIndex), candidate.targetField]),
@@ -72,9 +76,7 @@ async function saveImport() {
         </button>
         <input ref="fileInput" class="visually-hidden-file" type="file" accept=".csv,text/csv" @change="onSelect" />
         <span class="muted">{{ file?.name ?? '未選択' }}</span>
-        <button type="button" :disabled="!file || previewState.loading.value" @click="previewFile">
-          {{ previewState.loading.value ? '解析中' : 'プレビュー' }}
-        </button>
+        <span v-if="previewState.loading.value" class="muted">解析中</span>
       </div>
       <p v-if="previewState.error.value" class="error-line">{{ previewState.error.value }}</p>
     </div>
