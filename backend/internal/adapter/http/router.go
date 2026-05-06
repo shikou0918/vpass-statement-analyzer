@@ -95,7 +95,7 @@ func (h *Handler) createImport(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, result)
+	writeJSON(w, http.StatusCreated, createImportToResponse(result))
 }
 
 func (h *Handler) listImports(w http.ResponseWriter, r *http.Request) {
@@ -104,7 +104,7 @@ func (h *Handler) listImports(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"items": items, "pagination": p})
+	writeJSON(w, http.StatusOK, map[string]any{"items": mapResponses(items, importFileToResponse), "pagination": p})
 }
 
 func (h *Handler) getImport(w http.ResponseWriter, r *http.Request) {
@@ -117,7 +117,7 @@ func (h *Handler) getImport(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, item)
+	writeJSON(w, http.StatusOK, importFileToResponse(*item))
 }
 
 func (h *Handler) deleteImport(w http.ResponseWriter, r *http.Request) {
@@ -158,7 +158,7 @@ func (h *Handler) listTransactions(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"items": items, "pagination": p})
+	writeJSON(w, http.StatusOK, map[string]any{"items": mapResponses(items, transactionToResponse), "pagination": p})
 }
 
 func (h *Handler) getTransaction(w http.ResponseWriter, r *http.Request) {
@@ -171,7 +171,7 @@ func (h *Handler) getTransaction(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, item)
+	writeJSON(w, http.StatusOK, transactionToResponse(*item))
 }
 
 func (h *Handler) updateTransaction(w http.ResponseWriter, r *http.Request) {
@@ -197,7 +197,7 @@ func (h *Handler) updateTransaction(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, item)
+	writeJSON(w, http.StatusOK, transactionToResponse(*item))
 }
 
 func (h *Handler) getMonthlySummary(w http.ResponseWriter, r *http.Request) {
@@ -290,7 +290,7 @@ func (h *Handler) listCategories(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+	writeJSON(w, http.StatusOK, map[string]any{"items": mapResponses(items, categoryToResponse)})
 }
 
 func (h *Handler) createCategory(w http.ResponseWriter, r *http.Request) {
@@ -303,7 +303,7 @@ func (h *Handler) createCategory(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, item)
+	writeJSON(w, http.StatusCreated, categoryToResponse(item))
 }
 
 func (h *Handler) updateCategory(w http.ResponseWriter, r *http.Request) {
@@ -320,7 +320,7 @@ func (h *Handler) updateCategory(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, item)
+	writeJSON(w, http.StatusOK, categoryToResponse(*item))
 }
 
 func (h *Handler) deleteCategory(w http.ResponseWriter, r *http.Request) {
@@ -341,7 +341,7 @@ func (h *Handler) listCategoryRules(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+	writeJSON(w, http.StatusOK, map[string]any{"items": mapResponses(items, categoryRuleToResponse)})
 }
 
 func (h *Handler) createCategoryRule(w http.ResponseWriter, r *http.Request) {
@@ -354,7 +354,7 @@ func (h *Handler) createCategoryRule(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, item)
+	writeJSON(w, http.StatusCreated, categoryRuleToResponse(item))
 }
 
 func (h *Handler) updateCategoryRule(w http.ResponseWriter, r *http.Request) {
@@ -371,7 +371,7 @@ func (h *Handler) updateCategoryRule(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, item)
+	writeJSON(w, http.StatusOK, categoryRuleToResponse(*item))
 }
 
 func (h *Handler) deleteCategoryRule(w http.ResponseWriter, r *http.Request) {
@@ -408,7 +408,7 @@ func (h *Handler) exportTransactions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.URL.Query().Get("format") == "json" {
-		writeJSON(w, http.StatusOK, map[string]any{"items": items})
+		writeJSON(w, http.StatusOK, map[string]any{"items": mapResponses(items, transactionToResponse)})
 		return
 	}
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
@@ -435,7 +435,7 @@ func (h *Handler) getSettings(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, item)
+	writeJSON(w, http.StatusOK, settingsToResponse(item))
 }
 
 func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
@@ -448,7 +448,7 @@ func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, item)
+	writeJSON(w, http.StatusOK, settingsToResponse(item))
 }
 
 func summaryFilter(r *http.Request) usecase.SummaryFilter {

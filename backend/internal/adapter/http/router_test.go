@@ -165,6 +165,30 @@ func TestHeaderlessVpassImportFormat(t *testing.T) {
 	if !strings.Contains(importRes.Body.String(), `"importedCount":2`) {
 		t.Fatalf("expected importedCount 2, got %s", importRes.Body.String())
 	}
+
+	listReq := httptest.NewRequest(http.MethodGet, "/transactions?page=1&pageSize=50&billingMonth=2026-05&sort=usageDate&order=desc", nil)
+	listRes := httptest.NewRecorder()
+	router.ServeHTTP(listRes, listReq)
+	if listRes.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", listRes.Code, listRes.Body.String())
+	}
+	var list struct {
+		Items []struct {
+			UsageDate    string `json:"usageDate"`
+			MerchantName string `json:"merchantName"`
+			BillingMonth string `json:"billingMonth"`
+			BilledAmount *int64 `json:"billedAmount"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(listRes.Body.Bytes(), &list); err != nil {
+		t.Fatalf("decode transactions: %v", err)
+	}
+	if len(list.Items) < 2 {
+		t.Fatalf("expected at least 2 transactions, got %d: %s", len(list.Items), listRes.Body.String())
+	}
+	if list.Items[0].UsageDate == "" || list.Items[0].MerchantName == "" || list.Items[0].BillingMonth == "" || list.Items[0].BilledAmount == nil {
+		t.Fatalf("transaction response should use camelCase fields: %+v", list.Items[0])
+	}
 }
 
 func createPreview(t *testing.T, router http.Handler, csvBody string) importPreviewResponse {
