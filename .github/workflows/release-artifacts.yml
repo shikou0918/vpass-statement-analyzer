@@ -1,0 +1,53 @@
+name: Release Artifacts
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build backend
+        working-directory: backend
+        run: |
+          go mod download
+          mkdir -p ../dist
+          CGO_ENABLED=1 go build -o ../dist/vpass-api ./cmd/server
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+          mkdir -p ../dist/frontend
+          cp -R dist/. ../dist/frontend/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: vpass-statement-analyzer
+          path: dist/
+          if-no-files-found: error
