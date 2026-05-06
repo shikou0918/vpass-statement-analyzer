@@ -1,0 +1,20 @@
+{
+  "name": "vpass-statement-analyzer-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --configLoader native",
+    "build": "vue-tsc --noEmit && vite build --configLoader native",
+    "preview": "vite preview --host 127.0.0.1 --configLoader native",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5",
+    "vue": "^3.5.13",
+    "vue-tsc": "^2.2.0"
+  },
+  "devDependencies": {}
+}

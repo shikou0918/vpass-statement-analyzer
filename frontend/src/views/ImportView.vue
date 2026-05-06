@@ -1,0 +1,128 @@
+<script setup lang="ts">
+import { computed, ref } from 'vue'
+import { createImport, createImportPreview } from '../api/client'
+import type { ImportMappingCandidate, ImportPreview } from '../api/types'
+import { useAsyncState } from '../composables/useAsyncState'
+
+const emit = defineEmits<{ imported: [] }>()
+
+const file = ref<File | null>(null)
+const preview = ref<ImportPreview | null>(null)
+const confirmedMapping = ref<Record<string, string>>({})
+const saveMessage = ref('')
+const previewState = useAsyncState<ImportPreview>()
+const importState = useAsyncState<unknown>()
+
+const targetFields = [
+  '',
+  'usageDate',
+  'merchantName',
+  'billingMonth',
+  'usageAmount',
+  'billedAmount',
+  'cardUser',
+  'paymentMethod',
+]
+
+const missingRequired = computed(() => {
+  const targets = new Set(Object.values(confirmedMapping.value).filter(Boolean))
+  const missing = ['usageDate', 'merchantName', 'billingMonth'].filter((target) => !targets.has(target))
+  if (!targets.has('usageAmount') && !targets.has('billedAmount')) {
+    missing.push('usageAmount または billedAmount')
+  }
+  return missing
+})
+
+async function onSelect(event: Event) {
+  const input = event.target as HTMLInputElement
+  file.value = input.files?.[0] ?? null
+  preview.value = null
+  saveMessage.value = ''
+}
+
+async function previewFile() {
+  if (!file.value) return
+  const result = await previewState.run(() => createImportPreview(file.value as File))
+  if (!result) return
+  preview.value = result
+  confirmedMapping.value = Object.fromEntries(
+    result.mappingCandidates.map((candidate: ImportMappingCandidate) => [String(candidate.sourceColumnIndex), candidate.targetField]),
+  )
+}
+
+async function saveImport() {
+  if (!preview.value || missingRequired.value.length > 0 || preview.value.duplicateFile) return
+  const result = await importState.run(() => createImport(preview.value as ImportPreview, confirmedMapping.value))
+  if (result) {
+    saveMessage.value = 'インポートを保存しました'
+    emit('imported')
+  }
+}
+</script>
+
+<template>
+  <section class="screen-stack">
+    <div class="panel">
+      <div class="step-row">
+        <span class="step active">1. ファイル選択</span>
+        <span class="step" :class="{ active: preview }">2. プレビュー確認</span>
+        <span class="step" :class="{ active: saveMessage }">3. 保存結果</span>
+      </div>
+      <div class="toolbar">
+        <label class="file-button">
+          CSVファイル
+          <input type="file" accept=".csv,text/csv" @change="onSelect" />
+        </label>
+        <span class="muted">{{ file?.name ?? '未選択' }}</span>
+        <button type="button" :disabled="!file || previewState.loading.value" @click="previewFile">
+          {{ previewState.loading.value ? '解析中' : 'プレビュー' }}
+        </button>
+      </div>
+      <p v-if="previewState.error.value" class="error-line">{{ previewState.error.value }}</p>
+    </div>
+
+    <div v-if="preview" class="panel">
+      <div class="summary-grid">
+        <div><span>encoding</span><strong>{{ preview.encoding }}</strong></div>
+        <div><span>format</span><strong>{{ preview.detectedFormat }}</strong></div>
+        <div><span>header</span><strong>{{ preview.hasHeader ? 'あり' : 'なし' }}</strong></div>
+        <div><span>duplicate</span><strong>{{ preview.duplicateFile ? 'あり' : 'なし' }}</strong></div>
+      </div>
+
+      <p v-if="preview.duplicateFile" class="warning-line">同一ファイルが保存済みです。保存はできません。</p>
+      <p v-if="missingRequired.length > 0" class="warning-line">不足: {{ missingRequired.join(', ') }}</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>列</th>
+              <th>サンプル</th>
+              <th>targetField</th>
+              <th>信頼度</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="candidate in preview.mappingCandidates" :key="candidate.sourceColumnIndex">
+              <td>{{ candidate.sourceColumnName }}</td>
+              <td>{{ candidate.sampleValues.join(' / ') }}</td>
+              <td>
+                <select v-model="confirmedMapping[String(candidate.sourceColumnIndex)]">
+                  <option v-for="field in targetFields" :key="field" :value="field">{{ field || '未使用' }}</option>
+                </select>
+              </td>
+              <td><span class="badge">{{ candidate.confidence }}</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="toolbar right">
+        <button type="button" :disabled="missingRequired.length > 0 || preview.duplicateFile || importState.loading.value" @click="saveImport">
+          {{ importState.loading.value ? '保存中' : 'インポート実行' }}
+        </button>
+      </div>
+      <p v-if="importState.error.value" class="error-line">{{ importState.error.value }}</p>
+    </div>
+  </section>
+</template>
