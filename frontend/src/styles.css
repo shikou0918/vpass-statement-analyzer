@@ -204,11 +204,17 @@ h2 {
   cursor: pointer;
 }
 
-.file-button input {
+.visually-hidden-file {
   position: absolute;
-  inset: 0;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
   opacity: 0;
-  cursor: pointer;
 }
 
 .muted,
@@ -354,4 +360,3 @@ h2 {
     grid-template-columns: 1fr;
   }
 }
-

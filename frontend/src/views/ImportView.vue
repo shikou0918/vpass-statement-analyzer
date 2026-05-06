@@ -6,6 +6,7 @@ import { useAsyncState } from '../composables/useAsyncState'
 
 const emit = defineEmits<{ imported: [] }>()
 
+const fileInput = ref<HTMLInputElement | null>(null)
 const file = ref<File | null>(null)
 const preview = ref<ImportPreview | null>(null)
 const confirmedMapping = ref<Record<string, string>>({})
@@ -40,6 +41,10 @@ async function onSelect(event: Event) {
   saveMessage.value = ''
 }
 
+function openFileDialog() {
+  fileInput.value?.click()
+}
+
 async function previewFile() {
   if (!file.value) return
   const result = await previewState.run(() => createImportPreview(file.value as File))
@@ -69,10 +74,10 @@ async function saveImport() {
         <span class="step" :class="{ active: saveMessage }">3. 保存結果</span>
       </div>
       <div class="toolbar">
-        <label class="file-button">
+        <button class="file-button" type="button" @click="openFileDialog">
           CSVファイル
-          <input type="file" accept=".csv,text/csv" @change="onSelect" />
-        </label>
+        </button>
+        <input ref="fileInput" class="visually-hidden-file" type="file" accept=".csv,text/csv" @change="onSelect" />
         <span class="muted">{{ file?.name ?? '未選択' }}</span>
         <button type="button" :disabled="!file || previewState.loading.value" @click="previewFile">
           {{ previewState.loading.value ? '解析中' : 'プレビュー' }}

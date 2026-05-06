@@ -10,6 +10,22 @@ Vpass明細CSVをローカルで取り込み、明細検索、カテゴリ分類
 
 ## 起動
 
+Docker Composeで起動する場合:
+
+```sh
+docker compose up --build
+```
+
+Compose v2が入っていない環境では以下を使用する。
+
+```sh
+docker-compose up --build
+```
+
+フロントエンドは `http://localhost:5173`、APIは `http://localhost:8080` で起動します。SQLite DBはDocker volume `vpass-statement-analyzer_backend-data` に保存されます。
+
+ローカルで個別に起動する場合:
+
 ```sh
 cd backend
 go mod download
@@ -23,4 +39,3 @@ npm run dev
 ```
 
 APIの既定URLは `http://localhost:8080` です。
-
