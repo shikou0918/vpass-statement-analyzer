@@ -37,6 +37,21 @@ jobs:
           mkdir -p ../dist
           CGO_ENABLED=1 go build -o ../dist/vpass-api ./cmd/server
 
+      - name: Build backend image
+        run: docker build -t vpass-statement-analyzer-backend:${{ github.sha }} ./backend
+
+      - name: Scan backend image
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: vpass-statement-analyzer-backend:${{ github.sha }}
+          scanners: vuln,secret,misconfig
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          format: table
+          exit-code: "1"
+          timeout: 10m
+
       - name: Build frontend
         working-directory: frontend
         run: |
@@ -44,6 +59,21 @@ jobs:
           npm run build
           mkdir -p ../dist/frontend
           cp -R dist/. ../dist/frontend/
+
+      - name: Build frontend image
+        run: docker build -t vpass-statement-analyzer-frontend:${{ github.sha }} ./frontend
+
+      - name: Scan frontend image
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: vpass-statement-analyzer-frontend:${{ github.sha }}
+          scanners: vuln,secret,misconfig
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          format: table
+          exit-code: "1"
+          timeout: 10m
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

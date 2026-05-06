@@ -15,15 +15,22 @@ const previewState = useAsyncState<ImportPreview>()
 const importState = useAsyncState<unknown>()
 
 const targetFields = [
-  '',
-  'usageDate',
-  'merchantName',
-  'billingMonth',
-  'usageAmount',
-  'billedAmount',
-  'cardUser',
-  'paymentMethod',
+  { value: '', label: '未使用' },
+  { value: 'usageDate', label: '利用日' },
+  { value: 'merchantName', label: '利用先' },
+  { value: 'billingMonth', label: '請求月' },
+  { value: 'usageAmount', label: '利用金額' },
+  { value: 'billedAmount', label: '請求金額' },
+  { value: 'cardUser', label: '利用者' },
+  { value: 'paymentMethod', label: '支払方法' },
 ]
+
+const confidenceLabels: Record<string, string> = {
+  high: '高',
+  medium: '中',
+  low: '低',
+  none: '未確定',
+}
 
 const missingRequired = computed(() => {
   const targets = new Set(Object.values(confirmedMapping.value).filter(Boolean))
@@ -103,7 +110,7 @@ async function saveImport() {
             <tr>
               <th>列</th>
               <th>サンプル</th>
-              <th>targetField</th>
+              <th>取込先項目</th>
               <th>信頼度</th>
             </tr>
           </thead>
@@ -113,10 +120,10 @@ async function saveImport() {
               <td>{{ candidate.sampleValues.join(' / ') }}</td>
               <td>
                 <select v-model="confirmedMapping[String(candidate.sourceColumnIndex)]">
-                  <option v-for="field in targetFields" :key="field" :value="field">{{ field || '未使用' }}</option>
+                  <option v-for="field in targetFields" :key="field.value" :value="field.value">{{ field.label }}</option>
                 </select>
               </td>
-              <td><span class="badge">{{ candidate.confidence }}</span></td>
+              <td><span class="badge">{{ confidenceLabels[candidate.confidence] ?? candidate.confidence }}</span></td>
             </tr>
           </tbody>
         </table>
