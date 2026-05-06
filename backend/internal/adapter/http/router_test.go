@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"vpass-statement-analyzer/backend/internal/infra/database"
+	"vpass-statement-analyzer/backend/internal/infrastructure/database"
 	"vpass-statement-analyzer/backend/internal/usecase"
 )
 

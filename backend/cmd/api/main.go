@@ -7,7 +7,7 @@ import (
 
 	httpadapter "vpass-statement-analyzer/backend/internal/adapter/http"
 	"vpass-statement-analyzer/backend/internal/config"
-	"vpass-statement-analyzer/backend/internal/infra/database"
+	"vpass-statement-analyzer/backend/internal/infrastructure/database"
 	"vpass-statement-analyzer/backend/internal/usecase"
 )
 

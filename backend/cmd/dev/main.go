@@ -47,7 +47,7 @@ func main() {
 }
 
 func startServer(ctx context.Context) *exec.Cmd {
-	cmd := exec.CommandContext(ctx, "go", "run", "./cmd/server")
+	cmd := exec.CommandContext(ctx, "go", "run", "./cmd/api")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Env = os.Environ()
