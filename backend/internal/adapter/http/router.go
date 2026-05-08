@@ -44,6 +44,7 @@ func NewRouter(app *usecase.App, allowedOrigin string) http.Handler {
 	mux.HandleFunc("POST /category-rules", h.createCategoryRule)
 	mux.HandleFunc("PATCH /category-rules/", h.updateCategoryRule)
 	mux.HandleFunc("DELETE /category-rules/", h.deleteCategoryRule)
+	mux.HandleFunc("GET /classification-candidates", h.listClassificationCandidates)
 	mux.HandleFunc("POST /category-rule-applications", h.applyCategoryRules)
 	mux.HandleFunc("GET /exports/transactions", h.exportTransactions)
 	mux.HandleFunc("GET /settings", h.getSettings)
@@ -382,6 +383,15 @@ func (h *Handler) deleteCategoryRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) listClassificationCandidates(w http.ResponseWriter, r *http.Request) {
+	items, err := h.app.ListClassificationCandidates(r.Context(), intQuery(r, "limit", 50))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 
 func (h *Handler) applyCategoryRules(w http.ResponseWriter, r *http.Request) {

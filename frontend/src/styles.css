@@ -362,6 +362,10 @@ h2 {
   overflow-x: auto;
 }
 
+.compact-table table {
+  min-width: 640px;
+}
+
 .bar-row,
 .ranking li,
 .item-list li {

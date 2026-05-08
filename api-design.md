@@ -134,6 +134,7 @@
 | POST | `/category-rules` | `createCategoryRule` | 分類ルールを作成する |
 | PATCH | `/category-rules/{categoryRuleId}` | `updateCategoryRule` | 分類ルールを更新する |
 | DELETE | `/category-rules/{categoryRuleId}` | `deleteCategoryRule` | 分類ルールを削除する |
+| GET | `/classification-candidates` | `listClassificationCandidates` | 未分類の利用先を件数順に集約して取得する |
 | POST | `/category-rule-applications` | `createCategoryRuleApplication` | 既存明細へ分類ルールを再適用する |
 
 `/category-rule-applications` は処理リソースとして扱う。初期版では同期処理で結果件数を即時返す。将来、対象件数が増えた場合は `applicationId` を永続化して進捗取得 API を追加する。

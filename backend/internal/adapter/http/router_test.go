@@ -233,6 +233,35 @@ func TestHeaderlessVpassImportFormat(t *testing.T) {
 	}
 }
 
+func TestClassificationCandidatesEndpoint(t *testing.T) {
+	router := newTestServer(t)
+	csvBody := "利用日,利用先,支払月,利用金額,請求金額\n2026-05-01,ローソン,2026-06,1000,1000\n2026-05-02,ローソン,2026-06,500,500\n2026-05-03,大東ガス,2026-06,3000,3000\n"
+	preview := createPreview(t, router, csvBody)
+	createImportFromPreview(t, router, preview)
+
+	req := httptest.NewRequest(http.MethodGet, "/classification-candidates?limit=10", nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", res.Code, res.Body.String())
+	}
+	var body struct {
+		Items []struct {
+			MerchantName     string `json:"merchantName"`
+			TransactionCount int64  `json:"transactionCount"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(res.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode candidates: %v", err)
+	}
+	if len(body.Items) < 2 {
+		t.Fatalf("expected at least 2 candidates, got %d: %s", len(body.Items), res.Body.String())
+	}
+	if body.Items[0].MerchantName != "ローソン" || body.Items[0].TransactionCount != 2 {
+		t.Fatalf("expected candidates ordered by count, got %+v", body.Items[0])
+	}
+}
+
 func TestCompactVpassImportSkipsMetadataAndUsesFileNameBillingMonth(t *testing.T) {
 	router := newTestServer(t)
 	csvBody := strings.Join([]string{

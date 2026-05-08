@@ -256,6 +256,7 @@ stateDiagram-v2
 | カテゴリフォーム | name、color |
 | 分類ルール一覧 | priority、matchType、pattern、category、編集/削除 |
 | ルールフォーム | matchType、pattern、categoryId、priority |
+| 未分類候補 | 未分類の利用先名、件数、カテゴリ選択、ルール化 |
 | 再適用パネル | 対象範囲、手動カテゴリ上書き有無、実行 |
 
 ### 7.3 バリデーション
@@ -317,6 +318,7 @@ stateDiagram-v2
 | 分類ルール更新 | `updateCategoryRule` / `PATCH /category-rules/{categoryRuleId}` |
 | 分類ルール削除 | `deleteCategoryRule` / `DELETE /category-rules/{categoryRuleId}` |
 | 分類ルール再適用 | `createCategoryRuleApplication` / `POST /category-rule-applications` |
+| 未分類候補取得 | `listClassificationCandidates` / `GET /classification-candidates` |
 
 ## 8. 分析画面
 

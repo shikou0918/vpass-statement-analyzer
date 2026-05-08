@@ -238,6 +238,28 @@ func (r transactionRepository) ApplyRule(ctx context.Context, rule domain.Catego
 	return matched, updated, nil
 }
 
+func (r transactionRepository) ListClassificationCandidates(ctx context.Context, limit int) ([]usecase.ClassificationCandidate, error) {
+	var rows []struct {
+		MerchantName string
+		Count        int64
+	}
+	err := r.db.WithContext(ctx).Model(&TransactionModel{}).
+		Select("merchant_name as merchant_name, count(*) as count").
+		Where("category_id is null").
+		Group("merchant_name").
+		Order("count desc, merchant_name asc").
+		Limit(limit).
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	items := make([]usecase.ClassificationCandidate, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, usecase.ClassificationCandidate{MerchantName: row.MerchantName, TransactionCount: row.Count})
+	}
+	return items, nil
+}
+
 func applyTransactionFilter(query *gorm.DB, f usecase.TransactionFilter) *gorm.DB {
 	if f.BillingMonth != "" {
 		query = query.Where("billing_month = ?", f.BillingMonth)

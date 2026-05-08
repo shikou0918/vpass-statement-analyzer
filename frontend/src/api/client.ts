@@ -4,6 +4,7 @@ import type {
   CategoryRule,
   CategorySummaryItem,
   ChartPoint,
+  ClassificationCandidate,
   ImportFile,
   ImportPreview,
   ListResponse,
@@ -119,6 +120,10 @@ export function listCategoryRules(): Promise<{ items: CategoryRule[] }> {
 
 export function createCategoryRule(body: Omit<CategoryRule, 'id'>): Promise<CategoryRule> {
   return request<CategoryRule>('/category-rules', { method: 'POST', body: JSON.stringify(body) })
+}
+
+export function listClassificationCandidates(): Promise<{ items: ClassificationCandidate[] }> {
+  return request<{ items: ClassificationCandidate[] }>('/classification-candidates?limit=50')
 }
 
 export function applyCategoryRules(overwriteManualCategory: boolean) {

@@ -1,10 +1,19 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { applyCategoryRules, createCategory, createCategoryRule, deleteCategory, listCategories, listCategoryRules } from '../api/client'
-import type { Category, CategoryRule } from '../api/types'
+import {
+  applyCategoryRules,
+  createCategory,
+  createCategoryRule,
+  deleteCategory,
+  listCategories,
+  listCategoryRules,
+  listClassificationCandidates,
+} from '../api/client'
+import type { Category, CategoryRule, ClassificationCandidate } from '../api/types'
 
 const categories = ref<Category[]>([])
 const rules = ref<CategoryRule[]>([])
+const candidates = ref<ClassificationCandidate[]>([])
 const loading = ref(false)
 const saving = ref(false)
 const error = ref('')
@@ -15,14 +24,16 @@ const rulePattern = ref('')
 const ruleMatchType = ref<CategoryRule['matchType']>('contains')
 const ruleCategoryId = ref('')
 const overwriteManualCategory = ref(false)
+const candidateCategoryIds = ref<Record<string, string>>({})
 
 async function load() {
   loading.value = true
   error.value = ''
   try {
-    const [categoryResult, ruleResult] = await Promise.all([listCategories(), listCategoryRules()])
+    const [categoryResult, ruleResult, candidateResult] = await Promise.all([listCategories(), listCategoryRules(), listClassificationCandidates()])
     categories.value = categoryResult.items
     rules.value = ruleResult.items
+    candidates.value = candidateResult.items
   } catch {
     error.value = 'カテゴリ情報を取得できませんでした'
   } finally {
@@ -72,6 +83,28 @@ async function addRule() {
       priority: rules.value.length + 1,
     })
     rulePattern.value = ''
+    await load()
+    message.value = '分類ルールを作成しました'
+  } catch {
+    error.value = '分類ルールを作成できませんでした'
+  } finally {
+    saving.value = false
+  }
+}
+
+async function createRuleFromCandidate(candidate: ClassificationCandidate) {
+  const categoryId = candidateCategoryIds.value[candidate.merchantName]
+  if (!categoryId) return
+  saving.value = true
+  error.value = ''
+  try {
+    await createCategoryRule({
+      matchType: 'contains',
+      pattern: candidate.merchantName,
+      categoryId: Number(categoryId),
+      priority: rules.value.length + 1,
+    })
+    delete candidateCategoryIds.value[candidate.merchantName]
     await load()
     message.value = '分類ルールを作成しました'
   } catch {
@@ -152,6 +185,39 @@ onMounted(load)
         <button type="button" :disabled="saving || rules.length === 0" @click="reapplyRules">分類ルールを再適用</button>
       </div>
     </div>
+
+    <div class="panel">
+      <h2>未分類候補</h2>
+      <div v-if="candidates.length === 0" class="empty">未分類の利用先はありません。</div>
+      <div v-else class="table-wrap compact-table">
+        <table>
+          <thead>
+            <tr>
+              <th>利用先</th>
+              <th>件数</th>
+              <th>カテゴリ</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="candidate in candidates" :key="candidate.merchantName">
+              <td>{{ candidate.merchantName }}</td>
+              <td>{{ candidate.transactionCount }}</td>
+              <td>
+                <select v-model="candidateCategoryIds[candidate.merchantName]" :disabled="saving">
+                  <option value="">カテゴリ</option>
+                  <option v-for="category in categories" :key="category.id" :value="category.id">{{ category.name }}</option>
+                </select>
+              </td>
+              <td>
+                <button type="button" :disabled="saving || !candidateCategoryIds[candidate.merchantName]" @click="createRuleFromCandidate(candidate)">
+                  ルール化
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </section>
 </template>
-

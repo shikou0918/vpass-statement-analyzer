@@ -83,6 +83,16 @@ func (a *App) ApplyCategoryRules(ctx context.Context, overwrite bool) (matched, 
 	return matched, updated, unchanged, 0, nil
 }
 
+func (a *App) ListClassificationCandidates(ctx context.Context, limit int) ([]ClassificationCandidate, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 200 {
+		limit = 200
+	}
+	return a.repos.Transactions().ListClassificationCandidates(ctx, limit)
+}
+
 func validateRule(in CategoryRuleInput) error {
 	switch in.MatchType {
 	case "contains", "startsWith", "equals", "regex":

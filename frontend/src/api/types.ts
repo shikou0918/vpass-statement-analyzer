@@ -84,6 +84,11 @@ export type CategoryRule = {
   priority: number
 }
 
+export type ClassificationCandidate = {
+  merchantName: string
+  transactionCount: number
+}
+
 export type ChartPoint = {
   label: string
   amount: number

@@ -103,6 +103,11 @@ type CategoryRuleInput struct {
 	Priority   int    `json:"priority"`
 }
 
+type ClassificationCandidate struct {
+	MerchantName     string `json:"merchantName"`
+	TransactionCount int64  `json:"transactionCount"`
+}
+
 type SummaryFilter struct {
 	Month       string
 	From        string

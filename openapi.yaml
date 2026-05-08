@@ -555,6 +555,27 @@ paths:
         "400":
           $ref: "#/components/responses/BadRequest"
 
+  /classification-candidates:
+    get:
+      operationId: listClassificationCandidates
+      tags: [CategoryRules]
+      summary: 未分類の利用先候補を取得する
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 200
+      responses:
+        "200":
+          description: 未分類の利用先候補
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClassificationCandidateListResponse"
+
   /exports/transactions:
     get:
       operationId: exportTransactions
@@ -1294,6 +1315,24 @@ components:
         unchangedCount:
           type: integer
         uncategorizedCount:
+          type: integer
+
+    ClassificationCandidateListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClassificationCandidate"
+
+    ClassificationCandidate:
+      type: object
+      required: [merchantName, transactionCount]
+      properties:
+        merchantName:
+          type: string
+        transactionCount:
           type: integer
 
     ExportFormat:

@@ -38,6 +38,7 @@ type TransactionRepository interface {
 	DeleteByImportID(ctx context.Context, importID int64) error
 	Summary(ctx context.Context, f SummaryFilter) (SummaryRows, error)
 	ApplyRule(ctx context.Context, rule domain.CategoryRule, overwrite bool) (matched int, updated int, err error)
+	ListClassificationCandidates(ctx context.Context, limit int) ([]ClassificationCandidate, error)
 }
 
 type CategoryRepository interface {
