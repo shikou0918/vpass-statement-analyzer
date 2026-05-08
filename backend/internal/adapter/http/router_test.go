@@ -233,11 +233,70 @@ func TestHeaderlessVpassImportFormat(t *testing.T) {
 	}
 }
 
+func TestCompactVpassImportSkipsMetadataAndUsesFileNameBillingMonth(t *testing.T) {
+	router := newTestServer(t)
+	csvBody := strings.Join([]string{
+		"市川　志功　様,4980-00**-****-****,Ｏｌｉｖｅゴールド／クレジット",
+		"2026/03/01,カブシキガイシャドミノピザジャパン,3190,１,１,3190,",
+		"2026/03/02,ローソン,254,１,１,254,",
+	}, "\n") + "\n"
+
+	preview := createPreviewWithFileName(t, router, "202604.csv", csvBody)
+	if len(preview.PreviewRows) != 2 {
+		t.Fatalf("expected metadata row to be skipped, got %d preview rows", len(preview.PreviewRows))
+	}
+	if got := preview.PreviewRows[0].RawColumns[0]; got != "2026/03/01" {
+		t.Fatalf("first preview row should be first transaction row, got %s", got)
+	}
+	mapping := map[string]string{}
+	for _, candidate := range preview.MappingCandidates {
+		mapping[strconv.Itoa(candidate.SourceColumnIndex)] = candidate.TargetField
+	}
+	for _, target := range []string{"usageDate", "merchantName", "usageAmount", "billedAmount", "billingMonth"} {
+		if !mappingHasTarget(mapping, target) {
+			t.Fatalf("mapping should include %s: %+v", target, mapping)
+		}
+	}
+
+	imported := createImportFromPreview(t, router, preview)
+	if imported.ImportedCount != 2 {
+		t.Fatalf("expected importedCount 2, got %d", imported.ImportedCount)
+	}
+
+	listReq := httptest.NewRequest(http.MethodGet, "/transactions?page=1&pageSize=50&billingMonth=2026-04&sort=usageDate&order=asc", nil)
+	listRes := httptest.NewRecorder()
+	router.ServeHTTP(listRes, listReq)
+	if listRes.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", listRes.Code, listRes.Body.String())
+	}
+	var list struct {
+		Items []struct {
+			MerchantName string `json:"merchantName"`
+			BillingMonth string `json:"billingMonth"`
+			UsageAmount  *int64 `json:"usageAmount"`
+			BilledAmount *int64 `json:"billedAmount"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(listRes.Body.Bytes(), &list); err != nil {
+		t.Fatalf("decode transactions: %v", err)
+	}
+	if len(list.Items) != 2 {
+		t.Fatalf("expected 2 transactions for billingMonth 2026-04, got %d: %s", len(list.Items), listRes.Body.String())
+	}
+	if list.Items[0].BillingMonth != "2026-04" || list.Items[0].UsageAmount == nil || list.Items[0].BilledAmount == nil {
+		t.Fatalf("unexpected imported compact row: %+v", list.Items[0])
+	}
+}
+
 func createPreview(t *testing.T, router http.Handler, csvBody string) importPreviewResponse {
+	return createPreviewWithFileName(t, router, "vpass.csv", csvBody)
+}
+
+func createPreviewWithFileName(t *testing.T, router http.Handler, fileName string, csvBody string) importPreviewResponse {
 	t.Helper()
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
-	part, err := writer.CreateFormFile("file", "vpass.csv")
+	part, err := writer.CreateFormFile("file", fileName)
 	if err != nil {
 		t.Fatalf("create form file: %v", err)
 	}
@@ -264,6 +323,15 @@ func createPreview(t *testing.T, router http.Handler, csvBody string) importPrev
 		t.Fatalf("decode preview: %v", err)
 	}
 	return preview
+}
+
+func mappingHasTarget(mapping map[string]string, target string) bool {
+	for _, value := range mapping {
+		if value == target {
+			return true
+		}
+	}
+	return false
 }
 
 func createImportFromPreview(t *testing.T, router http.Handler, preview importPreviewResponse) testCreateImportResponse {

@@ -71,8 +71,16 @@ func (a *App) CreateImportPreview(ctx context.Context, fileName string, r io.Rea
 	if hasHeader {
 		header = records[0]
 		rows = records[1:]
+	} else {
+		rows = dropLeadingNonTransactionRows(rows)
 	}
 
+	if month := billingMonthFromFileName(fileName); month != "" {
+		candidates := inferMapping(header, rows)
+		if !hasMappingTarget(candidates, "billingMonth") {
+			rows = appendColumn(rows, month)
+		}
+	}
 	candidates := inferMapping(header, rows)
 	errors := validateRows(rows, candidates)
 	previewRows := buildPreviewRows(rows, candidates, 50)
@@ -218,16 +226,20 @@ func inferMapping(header []string, rows [][]string) []ImportMappingCandidate {
 	width := 0
 	if len(header) > 0 {
 		width = len(header)
-	} else if len(rows) > 0 {
-		width = len(rows[0])
+	}
+	for _, row := range rows {
+		if len(row) > width {
+			width = len(row)
+		}
 	}
 	candidates := make([]ImportMappingCandidate, 0, width)
+	compact := isCompactVpassRows(rows)
 	for i := 0; i < width; i++ {
 		name := fmt.Sprintf("列 %d", i+1)
 		if i < len(header) && strings.TrimSpace(header[i]) != "" {
 			name = strings.TrimSpace(header[i])
 		}
-		target := inferTarget(name, i)
+		target := inferTarget(name, i, compact)
 		candidates = append(candidates, ImportMappingCandidate{
 			SourceColumnName:  name,
 			SourceColumnIndex: i,
@@ -239,13 +251,15 @@ func inferMapping(header []string, rows [][]string) []ImportMappingCandidate {
 	return candidates
 }
 
-func inferTarget(name string, index int) string {
+func inferTarget(name string, index int, compact bool) string {
 	n := strings.ToLower(name)
 	switch {
 	case strings.Contains(name, "利用日") || strings.Contains(n, "date"):
 		return "usageDate"
 	case strings.Contains(name, "利用先") || strings.Contains(name, "店") || strings.Contains(n, "merchant"):
 		return "merchantName"
+	case strings.Contains(name, "支払区分") || strings.Contains(name, "支払方法"):
+		return "paymentMethod"
 	case strings.Contains(name, "支払") || strings.Contains(name, "請求月"):
 		return "billingMonth"
 	case strings.Contains(name, "利用金額"):
@@ -254,14 +268,85 @@ func inferTarget(name string, index int) string {
 		return "billedAmount"
 	case strings.Contains(name, "本人") || strings.Contains(name, "家族") || strings.Contains(name, "利用者"):
 		return "cardUser"
-	case strings.Contains(name, "支払区分") || strings.Contains(name, "支払方法"):
-		return "paymentMethod"
+	}
+	if compact {
+		known := map[int]string{0: "usageDate", 1: "merchantName", 2: "usageAmount", 3: "paymentMethod", 5: "billedAmount", 7: "billingMonth"}
+		if target, ok := known[index]; ok {
+			return target
+		}
+		return ""
 	}
 	known := map[int]string{0: "usageDate", 1: "merchantName", 2: "cardUser", 3: "paymentMethod", 5: "billingMonth", 6: "usageAmount", 7: "billedAmount"}
 	if target, ok := known[index]; ok {
 		return target
 	}
 	return ""
+}
+
+func dropLeadingNonTransactionRows(rows [][]string) [][]string {
+	for i, row := range rows {
+		if len(row) == 0 {
+			continue
+		}
+		if _, err := parseDate(row[0]); err == nil {
+			return rows[i:]
+		}
+	}
+	return rows
+}
+
+func billingMonthFromFileName(fileName string) string {
+	base := fileName
+	if idx := strings.LastIndexAny(base, `/\`); idx >= 0 {
+		base = base[idx+1:]
+	}
+	digits := ""
+	for _, r := range base {
+		if r >= '0' && r <= '9' {
+			digits += string(r)
+		}
+		if len(digits) >= 6 {
+			break
+		}
+	}
+	if len(digits) < 6 {
+		return ""
+	}
+	return normalizeMonth(digits[:4] + "-" + digits[4:6])
+}
+
+func appendColumn(rows [][]string, value string) [][]string {
+	out := make([][]string, 0, len(rows))
+	for _, row := range rows {
+		next := append([]string{}, row...)
+		next = append(next, value)
+		out = append(out, next)
+	}
+	return out
+}
+
+func hasMappingTarget(candidates []ImportMappingCandidate, target string) bool {
+	for _, candidate := range candidates {
+		if candidate.TargetField == target {
+			return true
+		}
+	}
+	return false
+}
+
+func isCompactVpassRows(rows [][]string) bool {
+	for _, row := range rows {
+		if len(row) < 6 || len(row) > 8 {
+			continue
+		}
+		if _, err := parseDate(row[0]); err != nil {
+			continue
+		}
+		if parseOptionalAmount(row[2]) != nil && parseOptionalAmount(row[5]) != nil {
+			return true
+		}
+	}
+	return false
 }
 
 func sampleValues(rows [][]string, index int) []string {

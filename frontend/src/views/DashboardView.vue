@@ -23,17 +23,23 @@ function renderMonthlyTrendChart() {
 
   monthlyTrendChart?.destroy()
   monthlyTrendChart = new Chart(monthlyTrendCanvas.value, {
-    type: 'bar',
+    type: 'line',
     data: {
       labels: monthlyTrends.value.map((item) => item.label),
       datasets: [
         {
           label: '支出額',
           data: monthlyTrends.value.map((item) => item.amount),
-          backgroundColor: monthlyTrends.value.map((item) => (item.amount < 0 ? '#0f766e' : '#174ea6')),
-          borderRadius: 6,
-          borderSkipped: false,
-          maxBarThickness: 42,
+          borderColor: '#174ea6',
+          backgroundColor: 'rgb(23 78 166 / 0.12)',
+          pointBackgroundColor: monthlyTrends.value.map((item) => (item.amount < 0 ? '#0f766e' : '#174ea6')),
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2,
+          pointRadius: 5,
+          pointHoverRadius: 7,
+          borderWidth: 2,
+          fill: true,
+          tension: 0.32,
         },
       ],
     },
@@ -44,6 +50,7 @@ function renderMonthlyTrendChart() {
       plugins: {
         legend: { display: false },
         tooltip: {
+          displayColors: false,
           callbacks: {
             label: (context) => formatYen(Number(context.parsed.y ?? 0)),
           },
@@ -52,6 +59,7 @@ function renderMonthlyTrendChart() {
       scales: {
         x: {
           grid: { display: false },
+          offset: false,
           ticks: { color: '#475569' },
         },
         y: {
