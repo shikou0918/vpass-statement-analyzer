@@ -113,6 +113,9 @@ paths:
       operationId: deleteImport
       tags: [Import]
       summary: インポートと紐づく明細を削除する
+      description: |
+        指定したインポート履歴と、そのファイル由来の明細、マッピング、インポートエラーを削除する。
+        削除後は同一 fileHash のCSVを再インポートできる。
       responses:
         "204":
           description: インポートを削除した

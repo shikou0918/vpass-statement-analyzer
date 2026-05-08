@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createCategory, listCategories } from './client'
+import { createCategory, deleteImport, listCategories } from './client'
 
 describe('api client', () => {
   afterEach(() => {
@@ -40,6 +40,18 @@ describe('api client', () => {
         message: 'カテゴリ名は必須です',
         details: { field: 'name' },
       },
+    })
+  })
+
+  it('deletes an import and accepts a no-content response', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(deleteImport(42)).resolves.toBeUndefined()
+
+    expect(fetchMock).toHaveBeenCalledWith('http://localhost:8080/imports/42', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
     })
   })
 })

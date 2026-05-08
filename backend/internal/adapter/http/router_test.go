@@ -16,7 +16,8 @@ import (
 
 func newTestServer(t *testing.T) http.Handler {
 	t.Helper()
-	db, err := database.Open("file:vpass_test?mode=memory&cache=shared")
+	dbName := strings.NewReplacer("/", "_", " ", "_").Replace(t.Name())
+	db, err := database.Open("file:" + dbName + "?mode=memory&cache=shared")
 	if err != nil {
 		t.Fatalf("open database: %v", err)
 	}
@@ -122,6 +123,47 @@ func TestImportPreviewAndDuplicateImport(t *testing.T) {
 	}
 }
 
+func TestDeleteImportRemovesRelatedTransactionsAndAllowsReimport(t *testing.T) {
+	router := newTestServer(t)
+	csvBody := "利用日,利用先,支払月,利用金額,請求金額\n2026-05-01,コンビニ,2026-06,1000,1000\n"
+
+	preview := createPreview(t, router, csvBody)
+	imported := createImportFromPreview(t, router, preview)
+	if imported.ImportFile.ID == 0 {
+		t.Fatal("import id should not be empty")
+	}
+
+	deleteReq := httptest.NewRequest(http.MethodDelete, "/imports/"+strconv.FormatInt(imported.ImportFile.ID, 10), nil)
+	deleteRes := httptest.NewRecorder()
+	router.ServeHTTP(deleteRes, deleteReq)
+	if deleteRes.Code != http.StatusNoContent {
+		t.Fatalf("expected status 204, got %d: %s", deleteRes.Code, deleteRes.Body.String())
+	}
+
+	listReq := httptest.NewRequest(http.MethodGet, "/transactions?page=1&pageSize=50", nil)
+	listRes := httptest.NewRecorder()
+	router.ServeHTTP(listRes, listReq)
+	if listRes.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", listRes.Code, listRes.Body.String())
+	}
+	var list struct {
+		Items []struct {
+			ID int64 `json:"id"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(listRes.Body.Bytes(), &list); err != nil {
+		t.Fatalf("decode transactions: %v", err)
+	}
+	if len(list.Items) != 0 {
+		t.Fatalf("expected related transactions to be deleted, got %d", len(list.Items))
+	}
+
+	nextPreview := createPreview(t, router, csvBody)
+	if nextPreview.DuplicateFile {
+		t.Fatal("deleted import should not be treated as duplicate")
+	}
+}
+
 func TestHeaderlessVpassImportFormat(t *testing.T) {
 	router := newTestServer(t)
 	csvBody := strings.Join([]string{
@@ -224,6 +266,37 @@ func createPreview(t *testing.T, router http.Handler, csvBody string) importPrev
 	return preview
 }
 
+func createImportFromPreview(t *testing.T, router http.Handler, preview importPreviewResponse) testCreateImportResponse {
+	t.Helper()
+	mapping := map[string]string{}
+	for _, candidate := range preview.MappingCandidates {
+		mapping[strconv.Itoa(candidate.SourceColumnIndex)] = candidate.TargetField
+	}
+	importReqBody, err := json.Marshal(map[string]any{
+		"previewId":        preview.PreviewID,
+		"fileHash":         preview.FileHash,
+		"confirmedMapping": mapping,
+		"options": map[string]any{
+			"applyCategoryRules": true,
+		},
+	})
+	if err != nil {
+		t.Fatalf("marshal import request: %v", err)
+	}
+	importReq := httptest.NewRequest(http.MethodPost, "/imports", bytes.NewReader(importReqBody))
+	importReq.Header.Set("Content-Type", "application/json")
+	importRes := httptest.NewRecorder()
+	router.ServeHTTP(importRes, importReq)
+	if importRes.Code != http.StatusCreated {
+		t.Fatalf("expected status 201, got %d: %s", importRes.Code, importRes.Body.String())
+	}
+	var result testCreateImportResponse
+	if err := json.Unmarshal(importRes.Body.Bytes(), &result); err != nil {
+		t.Fatalf("decode import response: %v", err)
+	}
+	return result
+}
+
 type importPreviewResponse struct {
 	PreviewID         string                   `json:"previewId"`
 	FileHash          string                   `json:"fileHash"`
@@ -239,4 +312,13 @@ type importMappingCandidate struct {
 
 type importPreviewRow struct {
 	RawColumns []string `json:"rawColumns"`
+}
+
+type testCreateImportResponse struct {
+	ImportFile    testImportFileResponse `json:"importFile"`
+	ImportedCount int                    `json:"importedCount"`
+}
+
+type testImportFileResponse struct {
+	ID int64 `json:"id"`
 }

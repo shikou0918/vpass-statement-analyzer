@@ -5,6 +5,8 @@ import type { ImportFile } from '../api/types'
 
 const imports = ref<ImportFile[]>([])
 const loading = ref(false)
+const deletingId = ref<number | null>(null)
+const confirmTarget = ref<ImportFile | null>(null)
 const error = ref('')
 const message = ref('')
 
@@ -21,17 +23,32 @@ async function load() {
   }
 }
 
-async function removeImport(item: ImportFile) {
-  if (!window.confirm(`${item.fileName} を削除します。対象ファイル由来の明細も削除されます。`)) return
-  loading.value = true
+function requestRemoveImport(item: ImportFile) {
+  error.value = ''
+  message.value = ''
+  confirmTarget.value = item
+}
+
+function cancelRemoveImport() {
+  if (deletingId.value !== null) return
+  confirmTarget.value = null
+}
+
+async function confirmRemoveImport() {
+  if (!confirmTarget.value) return
+  const item = confirmTarget.value
+  deletingId.value = item.id
+  error.value = ''
+  message.value = ''
   try {
     await deleteImport(item.id)
     await load()
     message.value = 'インポートを削除しました'
+    confirmTarget.value = null
   } catch {
     error.value = 'インポートを削除できませんでした'
   } finally {
-    loading.value = false
+    deletingId.value = null
   }
 }
 
@@ -68,11 +85,39 @@ onMounted(load)
             <td>{{ item.detectedFormat }}</td>
             <td>{{ item.rowCount }}</td>
             <td>{{ new Date(item.importedAt).toLocaleString() }}</td>
-            <td><button type="button" :disabled="loading" @click="removeImport(item)">削除</button></td>
+            <td>
+              <button type="button" class="danger-button" :disabled="loading || deletingId !== null" @click="requestRemoveImport(item)">
+                {{ deletingId === item.id ? '削除中' : '削除' }}
+              </button>
+            </td>
           </tr>
         </tbody>
       </table>
     </div>
+    <div v-if="confirmTarget" class="dialog-backdrop" role="presentation" @click.self="cancelRemoveImport">
+      <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="delete-import-title">
+        <h2 id="delete-import-title">インポートを削除</h2>
+        <dl class="detail-list">
+          <div>
+            <dt>ファイル名</dt>
+            <dd>{{ confirmTarget.fileName }}</dd>
+          </div>
+          <div>
+            <dt>インポート日時</dt>
+            <dd>{{ new Date(confirmTarget.importedAt).toLocaleString() }}</dd>
+          </div>
+          <div>
+            <dt>影響</dt>
+            <dd>対象ファイル由来の明細とインポート情報を削除します。</dd>
+          </div>
+        </dl>
+        <div class="toolbar right">
+          <button type="button" class="secondary-button" :disabled="deletingId !== null" @click="cancelRemoveImport">キャンセル</button>
+          <button type="button" class="danger-button" :disabled="deletingId !== null" @click="confirmRemoveImport">
+            {{ deletingId === confirmTarget.id ? '削除中' : 'インポートを削除' }}
+          </button>
+        </div>
+      </section>
+    </div>
   </section>
 </template>
-

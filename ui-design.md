@@ -370,8 +370,8 @@ stateDiagram-v2
 | 項目 | 仕様 |
 |---|---|
 | 対象名 | fileName、importedAt |
-| 影響件数 | transactionCount、errorCount |
-| 影響 | 対象ファイル由来の明細とエラーを削除 |
+| 影響件数 | 詳細取得済みの場合は transactionCount、errorCount。履歴一覧のみの場合は件数表示を省略して影響範囲を文章で示す |
+| 影響 | 対象ファイル由来の明細、マッピング、エラー、インポート履歴を削除。同一CSVは削除後に再インポート可能 |
 | ボタン | `インポートを削除` |
 | 実行中 | ボタン disabled、削除中表示 |
 | 成功 | 履歴一覧へ戻り、Toast |

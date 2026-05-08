@@ -196,6 +196,7 @@ erDiagram
 - `CategoryRule.priority` により複数ルール一致時の適用順を制御する
 - カテゴリ削除時は、紐づく明細の `categoryId` を未分類へ戻す
 - ファイル単位削除時は、対象 `ImportFile` に紐づく `Transaction` と `ImportError` を削除対象とする
+- ファイル単位削除時は `ImportFile` 自体と `ImportMapping` も削除し、同一 `fileHash` のCSVを再インポート可能にする
 
 ## 5. 処理設計
 
@@ -279,7 +280,7 @@ sequenceDiagram
 | CSVインポート | POST | `/api/v1/imports` | プレビュー済みCSVを保存し、ImportFile/Transaction/ImportErrorを作成する |
 | インポート履歴 | GET | `/api/v1/imports` | インポート済みファイル一覧を取得する |
 | インポート履歴 | GET | `/api/v1/imports/{importFileId}` | インポートファイル単位の件数、エラー、取り込み結果を取得する |
-| インポート履歴 | DELETE | `/api/v1/imports/{importFileId}` | 指定ファイル由来の明細とエラーを削除する |
+| インポート履歴 | DELETE | `/api/v1/imports/{importFileId}` | 指定ファイル由来の明細、マッピング、エラー、インポート履歴を削除する |
 | 明細 | GET | `/api/v1/transactions` | 年月、利用先、カテゴリ、金額範囲、キーワードで明細を検索する |
 | 明細 | GET | `/api/v1/transactions/{transactionId}` | 明細1件の詳細を取得する |
 | 明細 | PATCH | `/api/v1/transactions/{transactionId}` | 明細のカテゴリなど、編集可能項目を更新する |

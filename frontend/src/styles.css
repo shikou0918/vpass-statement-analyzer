@@ -44,6 +44,18 @@ button:disabled {
   opacity: 0.55;
 }
 
+.secondary-button {
+  background: #fff;
+  border-color: #cbd5e1;
+  color: #172033;
+}
+
+.danger-button {
+  background: #b42318;
+  border-color: #b42318;
+  color: #fff;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -181,6 +193,48 @@ h2 {
 .toolbar.right {
   justify-content: flex-end;
   margin-top: 14px;
+}
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background: rgb(15 23 42 / 0.42);
+}
+
+.dialog {
+  width: min(520px, 100%);
+  border: 1px solid #dde4ee;
+  border-radius: 8px;
+  background: #fff;
+  padding: 18px;
+  box-shadow: 0 24px 60px rgb(15 23 42 / 0.2);
+}
+
+.detail-list {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0 0;
+}
+
+.detail-list div {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.detail-list dt {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.detail-list dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .toolbar label,

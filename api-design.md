@@ -90,7 +90,7 @@
 | POST | `/imports` | `createImport` | 確定マッピングをもとに CSV を保存する |
 | GET | `/imports` | `listImports` | インポート履歴を取得する |
 | GET | `/imports/{importFileId}` | `getImport` | インポート結果詳細を取得する |
-| DELETE | `/imports/{importFileId}` | `deleteImport` | 指定ファイル由来の明細・エラーを削除する |
+| DELETE | `/imports/{importFileId}` | `deleteImport` | 指定ファイル由来の明細・マッピング・エラー・履歴を削除する |
 
 `/import-previews` は DB 保存をしない。初期設計では `previewId` を返すが、これは短時間の一時参照として扱う。永続化するか、ファイルハッシュから再計算するか、フロントエンドが保存時に再度ファイルを送るかは実装時の未決事項とする。
 
@@ -191,7 +191,23 @@ Response:
 
 保存前にサーバー側で再検証する。`fileHash` が既に存在する場合は `409` を返す。
 
-### 4.3 `GET /transactions`
+### 4.3 `DELETE /imports/{importFileId}`
+
+Response:
+
+- 成功時は `204 No Content`
+- 対象のインポート履歴が存在しない場合は `404`
+
+削除対象:
+
+- 対象 `ImportFile`
+- 対象ファイル由来の `Transaction`
+- 対象ファイル由来の `ImportMapping`
+- 対象ファイル由来の `ImportError`
+
+削除後は同一 `fileHash` のCSVを再度インポートできる。削除処理はトランザクション内で実行し、一部だけ削除された状態を残さない。
+
+### 4.4 `GET /transactions`
 
 主な query:
 
@@ -211,7 +227,7 @@ Response:
 
 Response は `TransactionListResponse`。
 
-### 4.4 `PATCH /transactions/{transactionId}`
+### 4.5 `PATCH /transactions/{transactionId}`
 
 更新可能項目:
 
@@ -221,7 +237,7 @@ Response は `TransactionListResponse`。
 
 金額、利用日、利用先名など CSV 由来の正規化項目は初期版では更新対象外とする。
 
-### 4.5 `POST /category-rule-applications`
+### 4.6 `POST /category-rule-applications`
 
 Request:
 
@@ -256,13 +272,19 @@ Response:
 - 同一 `fileHash` が未保存であること
 - `dedupeKey` が既存明細と重複する場合はスキップすること
 
-### 5.3 カテゴリ
+### 5.3 インポート削除
+
+- `importFileId` が存在すること
+- 対象ファイル由来の明細、マッピング、エラー、履歴を同一トランザクションで削除すること
+- 削除後は対象 `fileHash` を重複判定対象から外すこと
+
+### 5.4 カテゴリ
 
 - `name` は空不可
 - `color` は `#RRGGBB` 形式
 - 削除時は紐づく明細を未分類へ戻す
 
-### 5.4 分類ルール
+### 5.5 分類ルール
 
 - `matchType` は `contains` / `startsWith` / `equals` / `regex`
 - `pattern` は空不可
