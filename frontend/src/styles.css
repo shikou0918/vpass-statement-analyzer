@@ -77,6 +77,11 @@ th {
   background: #f8fafc;
 }
 
+.select-cell {
+  width: 42px;
+  text-align: center;
+}
+
 h1,
 h2 {
   margin: 0;
