@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import { getCategorySummary, getMerchantSummary, getMonthlySummary } from '../api/client'
-import type { CategorySummaryItem, MonthlySummary, RankingItem } from '../api/types'
+import Chart from 'chart.js/auto'
+import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { getCategorySummary, getMerchantSummary, getMonthlySummary, getMonthlyTrends } from '../api/client'
+import type { CategorySummaryItem, ChartPoint, MonthlySummary, RankingItem } from '../api/types'
 
 defineEmits<{ goImport: [] }>()
 
@@ -11,19 +12,79 @@ const error = ref('')
 const summary = ref<MonthlySummary | null>(null)
 const merchants = ref<RankingItem[]>([])
 const categories = ref<CategorySummaryItem[]>([])
+const monthlyTrends = ref<ChartPoint[]>([])
+const monthlyTrendCanvas = ref<HTMLCanvasElement | null>(null)
+let monthlyTrendChart: Chart | null = null
+
+function formatYen(amount: number) {
+  return `${amount.toLocaleString()}円`
+}
+
+function renderMonthlyTrendChart() {
+  if (!monthlyTrendCanvas.value || monthlyTrends.value.length === 0) return
+
+  monthlyTrendChart?.destroy()
+  monthlyTrendChart = new Chart(monthlyTrendCanvas.value, {
+    type: 'bar',
+    data: {
+      labels: monthlyTrends.value.map((item) => item.label),
+      datasets: [
+        {
+          label: '支出額',
+          data: monthlyTrends.value.map((item) => item.amount),
+          backgroundColor: monthlyTrends.value.map((item) => (item.amount < 0 ? '#0f766e' : '#174ea6')),
+          borderRadius: 6,
+          borderSkipped: false,
+          maxBarThickness: 42,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 220 },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (context) => formatYen(Number(context.parsed.y ?? 0)),
+          },
+        },
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { color: '#475569' },
+        },
+        y: {
+          beginAtZero: true,
+          grid: { color: '#e2e8f0' },
+          ticks: {
+            color: '#64748b',
+            callback: (value) => formatYen(Number(value)),
+          },
+        },
+      },
+    },
+  })
+}
 
 async function load() {
   loading.value = true
   error.value = ''
   try {
-    const [monthly, merchantResult, categoryResult] = await Promise.all([
+    const [monthly, merchantResult, categoryResult, monthlyTrendResult] = await Promise.all([
       getMonthlySummary(month.value),
       getMerchantSummary(month.value),
       getCategorySummary(month.value),
+      getMonthlyTrends(),
     ])
     summary.value = monthly
     merchants.value = merchantResult.items ?? []
     categories.value = categoryResult.items ?? []
+    monthlyTrends.value = monthlyTrendResult.items ?? []
+    await nextTick()
+    renderMonthlyTrendChart()
   } catch {
     error.value = '集計を取得できませんでした'
   } finally {
@@ -32,6 +93,7 @@ async function load() {
 }
 
 onMounted(load)
+onBeforeUnmount(() => monthlyTrendChart?.destroy())
 </script>
 
 <template>
@@ -49,6 +111,14 @@ onMounted(load)
       <div class="kpi"><span>支出合計</span><strong>{{ summary?.totalAmount?.toLocaleString() ?? '-' }}円</strong></div>
       <div class="kpi"><span>前月比</span><strong>{{ summary?.diffAmount?.toLocaleString() ?? '-' }}円</strong></div>
       <div class="kpi"><span>明細件数</span><strong>{{ summary?.transactionCount ?? '-' }}</strong></div>
+    </div>
+
+    <div class="panel">
+      <h2>月別支出推移</h2>
+      <div v-if="monthlyTrends.length === 0" class="empty">月別推移を表示できる明細がありません。</div>
+      <div v-else class="chart-panel" aria-label="月別支出推移">
+        <canvas ref="monthlyTrendCanvas" />
+      </div>
     </div>
 
     <div class="two-column">

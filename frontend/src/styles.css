@@ -372,6 +372,11 @@ h2 {
   height: 100%;
 }
 
+.chart-panel {
+  height: 280px;
+  min-width: 0;
+}
+
 .ranking,
 .item-list {
   margin: 0;
