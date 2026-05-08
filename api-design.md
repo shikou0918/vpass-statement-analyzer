@@ -143,8 +143,6 @@
 | Method | Path | operationId | 概要 |
 |---|---|---|---|
 | GET | `/exports/transactions` | `exportTransactions` | 明細を CSV または JSON でエクスポートする |
-| GET | `/exports/categories` | `exportCategories` | カテゴリ定義を JSON でエクスポートする |
-| GET | `/exports/category-rules` | `exportCategoryRules` | 分類ルールを JSON でエクスポートする |
 | GET | `/settings` | `getSettings` | アプリ設定を取得する |
 | PATCH | `/settings` | `updateSettings` | アプリ設定を更新する |
 

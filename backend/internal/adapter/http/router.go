@@ -46,8 +46,6 @@ func NewRouter(app *usecase.App, allowedOrigin string) http.Handler {
 	mux.HandleFunc("DELETE /category-rules/", h.deleteCategoryRule)
 	mux.HandleFunc("POST /category-rule-applications", h.applyCategoryRules)
 	mux.HandleFunc("GET /exports/transactions", h.exportTransactions)
-	mux.HandleFunc("GET /exports/categories", h.exportCategories)
-	mux.HandleFunc("GET /exports/category-rules", h.exportCategoryRules)
 	mux.HandleFunc("GET /settings", h.getSettings)
 	mux.HandleFunc("PATCH /settings", h.updateSettings)
 	return h.cors(mux)
@@ -419,14 +417,6 @@ func (h *Handler) exportTransactions(w http.ResponseWriter, r *http.Request) {
 		_ = cw.Write([]string{strconv.FormatInt(item.ID, 10), item.UsageDate.Format("2006-01-02"), item.MerchantName, item.BillingMonth, intPtr(item.UsageAmount), intPtr(item.BilledAmount), intPtr(item.CategoryID), item.Memo})
 	}
 	cw.Flush()
-}
-
-func (h *Handler) exportCategories(w http.ResponseWriter, r *http.Request) {
-	h.listCategories(w, r)
-}
-
-func (h *Handler) exportCategoryRules(w http.ResponseWriter, r *http.Request) {
-	h.listCategoryRules(w, r)
 }
 
 func (h *Handler) getSettings(w http.ResponseWriter, r *http.Request) {

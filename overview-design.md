@@ -302,8 +302,6 @@ sequenceDiagram
 | 分類ルール | DELETE | `/api/v1/category-rules/{ruleId}` | 分類ルールを削除する |
 | 分類ルール | POST | `/api/v1/category-rules/reapply` | 既存明細に分類ルールを再適用する |
 | データ管理 | GET | `/api/v1/exports/transactions` | 明細データをCSVまたはJSONでエクスポートする |
-| データ管理 | GET | `/api/v1/exports/categories` | カテゴリ定義をJSONでエクスポートする |
-| データ管理 | GET | `/api/v1/exports/category-rules` | 分類ルールをJSONでエクスポートする |
 | 設定 | GET | `/api/v1/settings` | 集計基準などのアプリ設定を取得する |
 | 設定 | PATCH | `/api/v1/settings` | 集計基準などのアプリ設定を更新する |
 
@@ -343,8 +341,6 @@ API設計上の補足:
 | 出力 | 内容 |
 |---|---|
 | 明細エクスポート | 保存済み明細をCSVまたはJSONで出力 |
-| カテゴリエクスポート | カテゴリ定義をJSONで出力 |
-| 分類ルールエクスポート | ルール定義をJSONで出力 |
 
 ### 6.3 外部サービス連携
 
@@ -380,7 +376,7 @@ API設計上の補足:
 ### 7.4 運用・バックアップ
 
 - SQLite DBファイルをバックアップ対象とする
-- 明細、カテゴリ、分類ルールをエクスポート可能にする
+- 明細をCSVエクスポート可能にする
 - インポート履歴により、不要データをファイル単位で削除できるようにする
 - DBスキーマ変更はGORM AutoMigrateまたはGo製マイグレーションツールで管理する
 

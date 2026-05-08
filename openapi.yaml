@@ -20,7 +20,7 @@ tags:
   - name: CategoryRules
     description: 利用先名に基づく分類ルール管理
   - name: Exports
-    description: 明細、カテゴリ、分類ルールのエクスポート
+    description: 明細のエクスポート
   - name: Settings
     description: アプリ設定
 paths:
@@ -577,44 +577,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TransactionListResponse"
-
-  /exports/categories:
-    get:
-      operationId: exportCategories
-      tags: [Exports]
-      summary: カテゴリをJSONでエクスポートする
-      responses:
-        "200":
-          description: エクスポートしたカテゴリ
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [items]
-                properties:
-                  items:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Category"
-
-  /exports/category-rules:
-    get:
-      operationId: exportCategoryRules
-      tags: [Exports]
-      summary: 分類ルールをJSONでエクスポートする
-      responses:
-        "200":
-          description: エクスポートした分類ルール
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [items]
-                properties:
-                  items:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/CategoryRule"
 
   /settings:
     get:

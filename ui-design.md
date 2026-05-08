@@ -382,9 +382,7 @@ stateDiagram-v2
 
 | 操作 | 仕様 |
 |---|---|
-| 明細エクスポート | CSV/JSON選択、対象期間指定 |
-| カテゴリエクスポート | JSON固定 |
-| 分類ルールエクスポート | JSON固定 |
+| 明細エクスポート | CSV、対象期間指定 |
 
 ダウンロード開始時は Toast、失敗時は再試行可能なエラーを表示する。
 
@@ -396,8 +394,6 @@ stateDiagram-v2
 | インポート詳細取得 | `getImport` / `GET /imports/{importFileId}` |
 | インポート削除 | `deleteImport` / `DELETE /imports/{importFileId}` |
 | 明細エクスポート | `exportTransactions` / `GET /exports/transactions` |
-| カテゴリエクスポート | `exportCategories` / `GET /exports/categories` |
-| 分類ルールエクスポート | `exportCategoryRules` / `GET /exports/category-rules` |
 
 ## 10. 設定画面
 
@@ -440,7 +436,7 @@ stateDiagram-v2
 | 分析 | 固定費候補 | `listRecurringCandidates` |
 | 分析 | 少額高頻度候補 | `listSmallFrequentTransactions` |
 | データ管理 | インポート履歴/詳細/削除 | `listImports`, `getImport`, `deleteImport` |
-| データ管理 | エクスポート | `exportTransactions`, `exportCategories`, `exportCategoryRules` |
+| データ管理 | エクスポート | `exportTransactions` |
 | 設定 | 設定取得/更新 | `getSettings`, `updateSettings` |
 
 ## 12. アクセシビリティ・レスポンシブ

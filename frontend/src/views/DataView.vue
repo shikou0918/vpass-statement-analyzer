@@ -62,8 +62,6 @@ onMounted(load)
     <div class="panel toolbar">
       <button type="button" :disabled="loading" @click="load">再読み込み</button>
       <a class="button-like" href="http://localhost:8080/exports/transactions?format=csv">明細CSV</a>
-      <a class="button-like" href="http://localhost:8080/exports/categories">カテゴリJSON</a>
-      <a class="button-like" href="http://localhost:8080/exports/category-rules">分類ルールJSON</a>
     </div>
     <div class="panel table-wrap">
       <table>
