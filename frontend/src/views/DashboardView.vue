@@ -4,8 +4,6 @@ import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { getCategorySummary, getMerchantSummary, getMonthlySummary, getMonthlyTrends } from '../api/client'
 import type { CategorySummaryItem, ChartPoint, MonthlySummary, RankingItem } from '../api/types'
 
-defineEmits<{ goImport: [] }>()
-
 const month = ref(new Date().toISOString().slice(0, 7))
 const loading = ref(false)
 const error = ref('')

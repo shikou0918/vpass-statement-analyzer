@@ -1,26 +1,19 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import ImportView from './views/ImportView.vue'
-import DashboardView from './views/DashboardView.vue'
-import TransactionsView from './views/TransactionsView.vue'
-import CategoriesView from './views/CategoriesView.vue'
-import DataView from './views/DataView.vue'
-import SettingsView from './views/SettingsView.vue'
+import { computed } from 'vue'
+import { RouterLink, RouterView, useRoute } from 'vue-router'
 
-type ViewKey = 'import' | 'dashboard' | 'transactions' | 'categories' | 'data' | 'settings'
+const route = useRoute()
 
-const activeView = ref<ViewKey>('import')
-
-const navItems: Array<{ key: ViewKey; label: string }> = [
-  { key: 'import', label: 'インポート' },
-  { key: 'dashboard', label: 'ダッシュボード' },
-  { key: 'transactions', label: '明細一覧' },
-  { key: 'categories', label: 'カテゴリ・ルール' },
-  { key: 'data', label: 'データ管理' },
-  { key: 'settings', label: '設定' },
+const navItems = [
+  { to: '/imports/new', label: 'インポート' },
+  { to: '/dashboard', label: 'ダッシュボード' },
+  { to: '/transactions', label: '明細一覧' },
+  { to: '/categories', label: 'カテゴリ・ルール' },
+  { to: '/data', label: 'データ管理' },
+  { to: '/settings', label: '設定' },
 ]
 
-const title = computed(() => navItems.find((item) => item.key === activeView.value)?.label ?? 'インポート')
+const title = computed(() => String(route.meta.title ?? 'インポート'))
 </script>
 
 <template>
@@ -34,16 +27,15 @@ const title = computed(() => navItems.find((item) => item.key === activeView.val
         </div>
       </div>
       <nav class="nav-list">
-        <button
+        <RouterLink
           v-for="item in navItems"
-          :key="item.key"
+          :key="item.to"
+          :to="item.to"
           class="nav-item"
-          :class="{ active: activeView === item.key }"
-          type="button"
-          @click="activeView = item.key"
+          active-class="active"
         >
           {{ item.label }}
-        </button>
+        </RouterLink>
       </nav>
     </aside>
 
@@ -53,13 +45,7 @@ const title = computed(() => navItems.find((item) => item.key === activeView.val
         <span class="status-pill">ローカル実行</span>
       </header>
 
-      <ImportView v-if="activeView === 'import'" @imported="activeView = 'transactions'" />
-      <DashboardView v-else-if="activeView === 'dashboard'" @go-import="activeView = 'import'" />
-      <TransactionsView v-else-if="activeView === 'transactions'" @go-import="activeView = 'import'" />
-      <CategoriesView v-else-if="activeView === 'categories'" />
-      <DataView v-else-if="activeView === 'data'" />
-      <SettingsView v-else />
+      <RouterView />
     </main>
   </div>
 </template>
-

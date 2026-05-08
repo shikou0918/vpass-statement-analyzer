@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { createImport, createImportPreview } from '../api/client'
 import type { ImportMappingCandidate, ImportPreview } from '../api/types'
 import { useAsyncState } from '../composables/useAsyncState'
 
-const emit = defineEmits<{ imported: [] }>()
+const router = useRouter()
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const file = ref<File | null>(null)
@@ -57,7 +58,7 @@ async function saveImport() {
   const result = await importState.run(() => createImport(preview.value as ImportPreview, confirmedMapping.value))
   if (result) {
     saveMessage.value = 'インポートを保存しました'
-    emit('imported')
+    await router.push('/transactions')
   }
 }
 </script>

@@ -3,8 +3,6 @@ import { onMounted, ref } from 'vue'
 import { listCategories, listTransactions, updateTransaction } from '../api/client'
 import type { Category, Transaction } from '../api/types'
 
-defineEmits<{ goImport: [] }>()
-
 const rows = ref<Transaction[]>([])
 const categories = ref<Category[]>([])
 const loading = ref(false)
@@ -94,4 +92,3 @@ onMounted(load)
     </div>
   </section>
 </template>
-
