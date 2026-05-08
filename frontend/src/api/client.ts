@@ -3,6 +3,7 @@ import type {
   Category,
   CategoryRule,
   CategorySummaryItem,
+  ChartPoint,
   ImportFile,
   ImportPreview,
   ListResponse,
@@ -89,11 +90,15 @@ export function getMonthlySummary(month: string): Promise<MonthlySummary> {
 }
 
 export function getMerchantSummary(month: string): Promise<{ items: RankingItem[] }> {
-  return request<{ items: RankingItem[] }>(`/summaries/merchants?from=${month}-01&to=${month}-31&basisAmount=billedAmount`)
+  return request<{ items: RankingItem[] }>(`/summaries/merchants?month=${encodeURIComponent(month)}&basisAmount=billedAmount`)
 }
 
 export function getCategorySummary(month: string): Promise<{ items: CategorySummaryItem[] }> {
-  return request<{ items: CategorySummaryItem[] }>(`/summaries/categories?from=${month}-01&to=${month}-31&basisAmount=billedAmount`)
+  return request<{ items: CategorySummaryItem[] }>(`/summaries/categories?month=${encodeURIComponent(month)}&basisAmount=billedAmount`)
+}
+
+export function getMonthlyTrends(): Promise<{ items: ChartPoint[] }> {
+  return request<{ items: ChartPoint[] }>('/analytics/monthly-trends?basisAmount=billedAmount')
 }
 
 export function listCategories(): Promise<{ items: Category[] }> {
@@ -130,4 +135,3 @@ export function getSettings(): Promise<Settings> {
 export function updateSettings(settings: Settings): Promise<Settings> {
   return request<Settings>('/settings', { method: 'PATCH', body: JSON.stringify(settings) })
 }
-

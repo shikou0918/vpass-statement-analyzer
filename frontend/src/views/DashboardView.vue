@@ -22,8 +22,8 @@ async function load() {
       getCategorySummary(month.value),
     ])
     summary.value = monthly
-    merchants.value = merchantResult.items
-    categories.value = categoryResult.items
+    merchants.value = merchantResult.items ?? []
+    categories.value = categoryResult.items ?? []
   } catch {
     error.value = '集計を取得できませんでした'
   } finally {
@@ -74,4 +74,3 @@ onMounted(load)
     </div>
   </section>
 </template>
-

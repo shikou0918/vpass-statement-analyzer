@@ -104,34 +104,37 @@ func (r transactionRepository) Summary(ctx context.Context, f usecase.SummaryFil
 		amountColumn = "usage_amount"
 	}
 
-	base := r.db.WithContext(ctx).Model(&TransactionModel{}).Where("excluded_from_analytics = ?", false)
-	if f.Month != "" {
-		base = base.Where("billing_month = ?", f.Month)
-	}
-	if f.From != "" {
-		base = base.Where("date(usage_date) >= ?", f.From)
-	}
-	if f.To != "" {
-		base = base.Where("date(usage_date) <= ?", f.To)
-	}
-	if f.FromMonth != "" {
-		base = base.Where("billing_month >= ?", f.FromMonth)
-	}
-	if f.ToMonth != "" {
-		base = base.Where("billing_month <= ?", f.ToMonth)
-	}
-	if f.Merchant != "" {
-		base = base.Where("merchant_name = ?", f.Merchant)
-	}
-	if f.CategoryID != "" {
-		base = base.Where("category_id = ?", f.CategoryID)
+	baseQuery := func() *gorm.DB {
+		base := r.db.WithContext(ctx).Model(&TransactionModel{}).Where("excluded_from_analytics = ?", false)
+		if f.Month != "" {
+			base = base.Where("billing_month = ?", f.Month)
+		}
+		if f.From != "" {
+			base = base.Where("date(usage_date) >= ?", f.From)
+		}
+		if f.To != "" {
+			base = base.Where("date(usage_date) <= ?", f.To)
+		}
+		if f.FromMonth != "" {
+			base = base.Where("billing_month >= ?", f.FromMonth)
+		}
+		if f.ToMonth != "" {
+			base = base.Where("billing_month <= ?", f.ToMonth)
+		}
+		if f.Merchant != "" {
+			base = base.Where("merchant_name = ?", f.Merchant)
+		}
+		if f.CategoryID != "" {
+			base = base.Where("category_id = ?", f.CategoryID)
+		}
+		return base
 	}
 
 	var totals struct {
 		Total int64
 		Count int64
 	}
-	_ = base.Select(fmt.Sprintf("coalesce(sum(%s), 0) as total, count(*) as count", amountColumn)).Scan(&totals).Error
+	_ = baseQuery().Select(fmt.Sprintf("coalesce(sum(%s), 0) as total, count(*) as count", amountColumn)).Scan(&totals).Error
 	rows.TotalAmount = totals.Total
 	rows.TransactionCount = totals.Count
 
@@ -139,7 +142,7 @@ func (r transactionRepository) Summary(ctx context.Context, f usecase.SummaryFil
 		Label  string
 		Amount int64
 	}
-	_ = base.Select(fmt.Sprintf("date(usage_date) as label, coalesce(sum(%s), 0) as amount", amountColumn)).Group("date(usage_date)").Order("label asc").Scan(&daily).Error
+	_ = baseQuery().Select(fmt.Sprintf("date(usage_date) as label, coalesce(sum(%s), 0) as amount", amountColumn)).Group("date(usage_date)").Order("label asc").Scan(&daily).Error
 	for _, d := range daily {
 		rows.Daily = append(rows.Daily, usecase.ChartPoint{Label: d.Label, Amount: d.Amount})
 	}
@@ -153,7 +156,7 @@ func (r transactionRepository) Summary(ctx context.Context, f usecase.SummaryFil
 	if limit <= 0 {
 		limit = 20
 	}
-	_ = base.Select(fmt.Sprintf("merchant_name as merchant_name, coalesce(sum(%s), 0) as total_amount, count(*) as count", amountColumn)).Group("merchant_name").Order("total_amount desc").Limit(limit).Scan(&ranking).Error
+	_ = baseQuery().Select(fmt.Sprintf("merchant_name as merchant_name, coalesce(sum(%s), 0) as total_amount, count(*) as count", amountColumn)).Group("merchant_name").Order("total_amount desc").Limit(limit).Scan(&ranking).Error
 	for _, row := range ranking {
 		rows.Ranking = append(rows.Ranking, usecase.RankingItem{MerchantName: row.MerchantName, TotalAmount: row.TotalAmount, TransactionCount: row.Count})
 	}
@@ -165,7 +168,7 @@ func (r transactionRepository) Summary(ctx context.Context, f usecase.SummaryFil
 		TotalAmount  int64
 		Count        int64
 	}
-	_ = base.Joins("left join category_models on category_models.id = transaction_models.category_id").
+	_ = baseQuery().Joins("left join category_models on category_models.id = transaction_models.category_id").
 		Select(fmt.Sprintf("transaction_models.category_id as category_id, coalesce(category_models.name, '未分類') as category_name, coalesce(category_models.color, '#9ca3af') as color, coalesce(sum(%s), 0) as total_amount, count(*) as count", amountColumn)).
 		Group("transaction_models.category_id, category_models.name, category_models.color").
 		Order("total_amount desc").Scan(&categories).Error
@@ -181,7 +184,7 @@ func (r transactionRepository) Summary(ctx context.Context, f usecase.SummaryFil
 		Label  string
 		Amount int64
 	}
-	_ = base.Select(fmt.Sprintf("billing_month as label, coalesce(sum(%s), 0) as amount", amountColumn)).Group("billing_month").Order("label asc").Scan(&trend).Error
+	_ = baseQuery().Select(fmt.Sprintf("billing_month as label, coalesce(sum(%s), 0) as amount", amountColumn)).Group("billing_month").Order("label asc").Scan(&trend).Error
 	for _, row := range trend {
 		rows.Trend = append(rows.Trend, usecase.ChartPoint{Label: row.Label, Amount: row.Amount})
 	}
@@ -195,7 +198,7 @@ func (r transactionRepository) Summary(ctx context.Context, f usecase.SummaryFil
 	if maxAmount <= 0 {
 		maxAmount = 1000
 	}
-	_ = base.Where(fmt.Sprintf("coalesce(%s, 0) <= ?", amountColumn), maxAmount).
+	_ = baseQuery().Where(fmt.Sprintf("coalesce(%s, 0) <= ?", amountColumn), maxAmount).
 		Select(fmt.Sprintf("merchant_name as merchant_name, coalesce(sum(%s), 0) as total_amount, count(*) as count", amountColumn)).
 		Group("merchant_name").Having("count(*) >= 3").Order("count desc").Limit(20).Scan(&frequent).Error
 	for _, row := range frequent {
