@@ -250,6 +250,7 @@ h2 {
 }
 
 .toolbar label,
+.inline-form label,
 .form-panel label {
   display: grid;
   gap: 6px;
@@ -286,6 +287,12 @@ h2 {
 .muted,
 .empty {
   color: #64748b;
+}
+
+.muted-text {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 12px;
 }
 
 .error-line,

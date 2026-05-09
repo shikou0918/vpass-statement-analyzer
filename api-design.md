@@ -289,6 +289,8 @@ Response:
 - `pattern` は空不可
 - `regex` の場合は正規表現としてコンパイルできること
 - `categoryId` は存在するカテゴリを指すこと
+- 同一 `matchType`、`pattern`、`categoryId` の分類ルールは `409 CONFLICT`
+- DBでは `category_rules(match_type, pattern, category_id)` に複合ユニーク制約を設定する
 
 ## 6. 未決事項
 

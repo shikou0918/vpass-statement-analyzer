@@ -195,6 +195,7 @@ erDiagram
 - `ImportMapping` は、ヘッダー名または列位置から確定した `usageDate`、`merchantName`、`billingMonth`、`usageAmount`、`billedAmount` などの対応関係を保存する
 - 必須項目は `usageDate`、`merchantName`、`billingMonth`、`usageAmount` または `billedAmount` とし、不足時は保存せずプレビューで確認させる
 - `CategoryRule.priority` により複数ルール一致時の適用順を制御する
+- 同一 `matchType`、`pattern`、`categoryId` の分類ルールはアプリケーション検証とDB複合ユニーク制約で重複登録を防ぐ
 - カテゴリ削除時は、紐づく明細の `categoryId` を未分類へ戻す
 - ファイル単位削除時は、対象 `ImportFile` に紐づく `Transaction` と `ImportError` を削除対象とする
 - ファイル単位削除時は `ImportFile` 自体と `ImportMapping` も削除し、同一 `fileHash` のCSVを再インポート可能にする

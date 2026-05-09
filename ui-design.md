@@ -269,6 +269,7 @@ stateDiagram-v2
 | pattern | 空不可 |
 | regex | 正規表現として有効 |
 | categoryId | 既存カテゴリ |
+| 分類ルール重複 | 同一 matchType、pattern、categoryId は作成不可 |
 
 ### 7.4 破壊的操作
 

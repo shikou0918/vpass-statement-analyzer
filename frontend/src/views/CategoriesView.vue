@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import {
   applyCategoryRules,
   createCategory,
@@ -25,6 +25,31 @@ const ruleMatchType = ref<CategoryRule['matchType']>('contains')
 const ruleCategoryId = ref('')
 const overwriteManualCategory = ref(false)
 const candidateCategoryIds = ref<Record<string, string>>({})
+
+const categoryNameById = computed(() => new Map(categories.value.map((category) => [category.id, category.name])))
+const existingRuleKeys = computed(() => new Set(rules.value.map((rule) => ruleKey(rule.matchType, rule.pattern, rule.categoryId))))
+const newRuleIsDuplicate = computed(
+  () => Boolean(rulePattern.value.trim() && ruleCategoryId.value) && existingRuleKeys.value.has(ruleKey(ruleMatchType.value, rulePattern.value, ruleCategoryId.value)),
+)
+
+function matchTypeLabel(matchType: CategoryRule['matchType']) {
+  const labels: Record<CategoryRule['matchType'], string> = {
+    contains: '含む',
+    startsWith: '前方一致',
+    equals: '完全一致',
+    regex: '正規表現',
+  }
+  return labels[matchType]
+}
+
+function ruleKey(matchType: CategoryRule['matchType'], pattern: string, categoryId: string | number) {
+  return `${matchType}:${pattern.trim()}:${categoryId}`
+}
+
+function candidateRuleExists(candidate: ClassificationCandidate) {
+  const categoryId = candidateCategoryIds.value[candidate.merchantName]
+  return Boolean(categoryId) && existingRuleKeys.value.has(ruleKey('contains', candidate.merchantName, categoryId))
+}
 
 async function load() {
   loading.value = true
@@ -73,6 +98,10 @@ async function removeCategory(category: Category) {
 
 async function addRule() {
   if (!rulePattern.value.trim() || !ruleCategoryId.value) return
+  if (newRuleIsDuplicate.value) {
+    error.value = '同じ分類ルールが既に存在します'
+    return
+  }
   saving.value = true
   error.value = ''
   try {
@@ -95,6 +124,10 @@ async function addRule() {
 async function createRuleFromCandidate(candidate: ClassificationCandidate) {
   const categoryId = candidateCategoryIds.value[candidate.merchantName]
   if (!categoryId) return
+  if (candidateRuleExists(candidate)) {
+    error.value = '同じ分類ルールが既に存在します'
+    return
+  }
   saving.value = true
   error.value = ''
   try {
@@ -155,34 +188,56 @@ onMounted(load)
       </div>
 
       <div class="panel">
-        <h2>分類ルール</h2>
+        <h2>自動分類ルール</h2>
         <div class="inline-form stackable">
-          <select v-model="ruleMatchType">
-            <option value="contains">含む</option>
-            <option value="startsWith">前方一致</option>
-            <option value="equals">完全一致</option>
-            <option value="regex">正規表現</option>
-          </select>
-          <input v-model="rulePattern" type="text" placeholder="利用先パターン" />
-          <select v-model="ruleCategoryId">
-            <option value="">カテゴリ</option>
-            <option v-for="category in categories" :key="category.id" :value="category.id">{{ category.name }}</option>
-          </select>
-          <button type="button" :disabled="saving" @click="addRule">追加</button>
+          <label>
+            条件
+            <select v-model="ruleMatchType">
+              <option value="contains">含む</option>
+              <option value="startsWith">前方一致</option>
+              <option value="equals">完全一致</option>
+              <option value="regex">正規表現</option>
+            </select>
+          </label>
+          <label>
+            利用先パターン
+            <input v-model="rulePattern" type="text" placeholder="例: セブン" />
+          </label>
+          <label>
+            分類先カテゴリ
+            <select v-model="ruleCategoryId">
+              <option value="">カテゴリ</option>
+              <option v-for="category in categories" :key="category.id" :value="category.id">{{ category.name }}</option>
+            </select>
+          </label>
+          <button type="button" :disabled="saving || newRuleIsDuplicate" @click="addRule">ルール追加</button>
         </div>
-        <ul class="item-list">
-          <li v-for="rule in rules" :key="rule.id">
-            <span class="badge">{{ rule.matchType }}</span>
-            <span>{{ rule.pattern }}</span>
-            <strong>#{{ rule.categoryId }}</strong>
-          </li>
-        </ul>
+        <p v-if="newRuleIsDuplicate" class="warning-line">同じ分類ルールが既に存在します。</p>
+        <div v-if="rules.length === 0" class="empty">分類ルールがありません。</div>
+        <div v-else class="table-wrap compact-table">
+          <table>
+            <thead>
+              <tr>
+                <th>条件</th>
+                <th>利用先パターン</th>
+                <th>分類先カテゴリ</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="rule in rules" :key="rule.id">
+                <td><span class="badge">{{ matchTypeLabel(rule.matchType) }}</span></td>
+                <td>{{ rule.pattern }}</td>
+                <td>{{ categoryNameById.get(rule.categoryId) ?? `#${rule.categoryId}` }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
         <div class="divider" />
         <label class="check-row">
           <input v-model="overwriteManualCategory" type="checkbox" />
           手動カテゴリも上書きする
         </label>
-        <button type="button" :disabled="saving || rules.length === 0" @click="reapplyRules">分類ルールを再適用</button>
+        <button type="button" :disabled="saving || rules.length === 0" @click="reapplyRules">既存明細へ適用</button>
       </div>
     </div>
 
@@ -210,9 +265,14 @@ onMounted(load)
                 </select>
               </td>
               <td>
-                <button type="button" :disabled="saving || !candidateCategoryIds[candidate.merchantName]" @click="createRuleFromCandidate(candidate)">
+                <button
+                  type="button"
+                  :disabled="saving || !candidateCategoryIds[candidate.merchantName] || candidateRuleExists(candidate)"
+                  @click="createRuleFromCandidate(candidate)"
+                >
                   ルール化
                 </button>
+                <p v-if="candidateRuleExists(candidate)" class="muted-text">作成済み</p>
               </td>
             </tr>
           </tbody>

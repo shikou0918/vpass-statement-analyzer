@@ -60,11 +60,11 @@ type CategoryModel struct {
 }
 
 type CategoryRuleModel struct {
-	ID         int64 `gorm:"primaryKey"`
-	MatchType  string
-	Pattern    string
-	CategoryID int64 `gorm:"index"`
-	Priority   int   `gorm:"index"`
+	ID         int64  `gorm:"primaryKey"`
+	MatchType  string `gorm:"uniqueIndex:idx_category_rule_unique"`
+	Pattern    string `gorm:"uniqueIndex:idx_category_rule_unique"`
+	CategoryID int64  `gorm:"index;uniqueIndex:idx_category_rule_unique"`
+	Priority   int    `gorm:"index"`
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
 }

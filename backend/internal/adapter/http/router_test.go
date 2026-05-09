@@ -78,6 +78,44 @@ func TestCategoryValidationError(t *testing.T) {
 	}
 }
 
+func TestDuplicateCategoryRuleRejected(t *testing.T) {
+	router := newTestServer(t)
+
+	createCategoryReq := httptest.NewRequest(http.MethodPost, "/categories", strings.NewReader(`{"name":"コンビニ","color":"#22c55e"}`))
+	createCategoryReq.Header.Set("Content-Type", "application/json")
+	createCategoryRes := httptest.NewRecorder()
+	router.ServeHTTP(createCategoryRes, createCategoryReq)
+	if createCategoryRes.Code != http.StatusCreated {
+		t.Fatalf("expected status 201, got %d: %s", createCategoryRes.Code, createCategoryRes.Body.String())
+	}
+	var category struct {
+		ID int64 `json:"id"`
+	}
+	if err := json.Unmarshal(createCategoryRes.Body.Bytes(), &category); err != nil {
+		t.Fatalf("decode category: %v", err)
+	}
+
+	body := `{"matchType":"contains","pattern":"ローソン","categoryId":` + strconv.FormatInt(category.ID, 10) + `,"priority":1}`
+	createRuleReq := httptest.NewRequest(http.MethodPost, "/category-rules", strings.NewReader(body))
+	createRuleReq.Header.Set("Content-Type", "application/json")
+	createRuleRes := httptest.NewRecorder()
+	router.ServeHTTP(createRuleRes, createRuleReq)
+	if createRuleRes.Code != http.StatusCreated {
+		t.Fatalf("expected status 201, got %d: %s", createRuleRes.Code, createRuleRes.Body.String())
+	}
+
+	duplicateReq := httptest.NewRequest(http.MethodPost, "/category-rules", strings.NewReader(body))
+	duplicateReq.Header.Set("Content-Type", "application/json")
+	duplicateRes := httptest.NewRecorder()
+	router.ServeHTTP(duplicateRes, duplicateReq)
+	if duplicateRes.Code != http.StatusConflict {
+		t.Fatalf("expected status 409, got %d: %s", duplicateRes.Code, duplicateRes.Body.String())
+	}
+	if !strings.Contains(duplicateRes.Body.String(), "CONFLICT") {
+		t.Fatalf("expected CONFLICT error body, got %s", duplicateRes.Body.String())
+	}
+}
+
 func TestImportPreviewAndDuplicateImport(t *testing.T) {
 	router := newTestServer(t)
 	csvBody := "利用日,利用先,支払月,利用金額,請求金額\n2026-05-01,コンビニ,2026-06,1000,1000\n"

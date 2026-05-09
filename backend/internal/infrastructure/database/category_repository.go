@@ -90,6 +90,9 @@ func (r categoryRuleRepository) Create(ctx context.Context, rule domain.Category
 	if err := ensureCategory(ctx, r.db, rule.CategoryID); err != nil {
 		return domain.CategoryRule{}, err
 	}
+	if err := ensureUniqueCategoryRule(ctx, r.db, 0, rule.MatchType, rule.Pattern, rule.CategoryID); err != nil {
+		return domain.CategoryRule{}, err
+	}
 	model := CategoryRuleModel{MatchType: rule.MatchType, Pattern: rule.Pattern, CategoryID: rule.CategoryID, Priority: rule.Priority, CreatedAt: time.Now(), UpdatedAt: time.Now()}
 	if err := r.db.WithContext(ctx).Create(&model).Error; err != nil {
 		return domain.CategoryRule{}, err
@@ -99,6 +102,9 @@ func (r categoryRuleRepository) Create(ctx context.Context, rule domain.Category
 
 func (r categoryRuleRepository) Update(ctx context.Context, id int64, in usecase.CategoryRuleInput) (*domain.CategoryRule, error) {
 	if err := ensureCategory(ctx, r.db, in.CategoryID); err != nil {
+		return nil, err
+	}
+	if err := ensureUniqueCategoryRule(ctx, r.db, id, in.MatchType, in.Pattern, in.CategoryID); err != nil {
 		return nil, err
 	}
 	res := r.db.WithContext(ctx).Model(&CategoryRuleModel{}).Where("id = ?", id).Updates(map[string]any{"match_type": in.MatchType, "pattern": in.Pattern, "category_id": in.CategoryID, "priority": in.Priority, "updated_at": time.Now()})
@@ -134,4 +140,26 @@ func ensureCategory(ctx context.Context, db *gorm.DB, id int64) error {
 		return usecase.BadRequest("categoryId が存在しません", map[string]any{"field": "categoryId"})
 	}
 	return err
+}
+
+func ensureUniqueCategoryRule(ctx context.Context, db *gorm.DB, excludeID int64, matchType string, pattern string, categoryID int64) error {
+	query := db.WithContext(ctx).
+		Where("match_type = ? AND pattern = ? AND category_id = ?", matchType, pattern, categoryID)
+	if excludeID > 0 {
+		query = query.Where("id <> ?", excludeID)
+	}
+
+	var model CategoryRuleModel
+	err := query.First(&model).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	return usecase.Conflict("同じ分類ルールが既に存在します", map[string]any{
+		"matchType":  matchType,
+		"pattern":    pattern,
+		"categoryId": categoryID,
+	})
 }

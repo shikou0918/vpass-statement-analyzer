@@ -57,6 +57,7 @@ func (a *App) UpdateCategoryRule(ctx context.Context, id int64, in CategoryRuleI
 	if err := validateRule(in); err != nil {
 		return nil, err
 	}
+	in.Pattern = strings.TrimSpace(in.Pattern)
 	return a.repos.CategoryRules().Update(ctx, id, in)
 }
 
