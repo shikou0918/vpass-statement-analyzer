@@ -84,6 +84,22 @@ func (a *App) ApplyCategoryRules(ctx context.Context, overwrite bool) (matched, 
 	return matched, updated, unchanged, 0, nil
 }
 
+func (a *App) PreviewCategoryRuleApplication(ctx context.Context, in CategoryRuleInput, overwrite bool) (CategoryRuleApplicationPreview, error) {
+	rule, err := ruleInputToDomain(in)
+	if err != nil {
+		return CategoryRuleApplicationPreview{}, err
+	}
+	return a.repos.Transactions().PreviewRule(ctx, rule, overwrite)
+}
+
+func (a *App) ApplyCategoryRule(ctx context.Context, in CategoryRuleInput, overwrite bool) (matched, updated int, err error) {
+	rule, err := ruleInputToDomain(in)
+	if err != nil {
+		return 0, 0, err
+	}
+	return a.repos.Transactions().ApplyRule(ctx, rule, overwrite)
+}
+
 func (a *App) ListClassificationCandidates(ctx context.Context, limit int) ([]ClassificationCandidate, error) {
 	if limit <= 0 {
 		limit = 50
@@ -112,4 +128,11 @@ func validateRule(in CategoryRuleInput) error {
 		return BadRequest("categoryId は必須です", map[string]any{"field": "categoryId"})
 	}
 	return nil
+}
+
+func ruleInputToDomain(in CategoryRuleInput) (domain.CategoryRule, error) {
+	if err := validateRule(in); err != nil {
+		return domain.CategoryRule{}, err
+	}
+	return domain.CategoryRule{MatchType: in.MatchType, Pattern: strings.TrimSpace(in.Pattern), CategoryID: in.CategoryID, Priority: in.Priority}, nil
 }

@@ -108,6 +108,20 @@ type ClassificationCandidate struct {
 	TransactionCount int64  `json:"transactionCount"`
 }
 
+type CategoryRuleApplicationPreview struct {
+	MatchedCount int                             `json:"matchedCount"`
+	ChangedCount int                             `json:"changedCount"`
+	Items        []CategoryRuleApplicationChange `json:"items"`
+}
+
+type CategoryRuleApplicationChange struct {
+	TransactionID     int64  `json:"transactionId"`
+	UsageDate         string `json:"usageDate"`
+	MerchantName      string `json:"merchantName"`
+	CurrentCategoryID *int64 `json:"currentCategoryId"`
+	NewCategoryID     int64  `json:"newCategoryId"`
+}
+
 type SummaryFilter struct {
 	Month       string
 	From        string

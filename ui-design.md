@@ -300,8 +300,8 @@ stateDiagram-v2
 | カテゴリ更新 | `updateCategory` / `PATCH /categories/{categoryId}` |
 | カテゴリ削除 | `deleteCategory` / `DELETE /categories/{categoryId}` |
 | 分類ルール一覧取得 | `listCategoryRules` / `GET /category-rules` |
-| 分類ルール作成 | `createCategoryRule` / `POST /category-rules` 後に `createCategoryRuleApplication` を上書きありで実行 |
-| 分類ルール更新 | `updateCategoryRule` / `PATCH /category-rules/{categoryRuleId}` 後に `createCategoryRuleApplication` を上書きありで実行 |
+| 分類ルール作成 | `previewCategoryRuleApplication` で件数確認後、`createCategoryRule` / `POST /category-rules` と `createCategoryRuleApplication` を実行 |
+| 分類ルール更新 | `previewCategoryRuleApplication` で件数確認後、`updateCategoryRule` / `PATCH /category-rules/{categoryRuleId}` と `createCategoryRuleApplication` を実行 |
 | 分類ルール削除 | `deleteCategoryRule` / `DELETE /category-rules/{categoryRuleId}` |
 | 未分類候補取得 | `listClassificationCandidates` / `GET /classification-candidates` |
 

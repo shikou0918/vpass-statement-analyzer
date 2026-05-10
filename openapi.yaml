@@ -557,6 +557,27 @@ paths:
         "400":
           $ref: "#/components/responses/BadRequest"
 
+  /category-rule-application-previews:
+    post:
+      operationId: previewCategoryRuleApplication
+      tags: [CategoryRules]
+      summary: 分類ルール適用時の対象件数を取得する
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PreviewCategoryRuleApplicationRequest"
+      responses:
+        "200":
+          description: 分類ルール適用プレビュー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryRuleApplicationPreview"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
   /classification-candidates:
     get:
       operationId: listClassificationCandidates
@@ -1258,7 +1279,7 @@ components:
 
     CreateCategoryRuleApplicationRequest:
       type: object
-      required: [scope, overwriteManualCategory]
+      required: [overwriteManualCategory]
       properties:
         scope:
           type: string
@@ -1275,6 +1296,31 @@ components:
               type: string
         overwriteManualCategory:
           type: boolean
+        matchType:
+          $ref: "#/components/schemas/CategoryRuleMatchType"
+        pattern:
+          type: string
+          minLength: 1
+        categoryId:
+          type: string
+        priority:
+          type: integer
+
+    PreviewCategoryRuleApplicationRequest:
+      type: object
+      required: [matchType, pattern, categoryId, overwriteManualCategory]
+      properties:
+        matchType:
+          $ref: "#/components/schemas/CategoryRuleMatchType"
+        pattern:
+          type: string
+          minLength: 1
+        categoryId:
+          type: string
+        priority:
+          type: integer
+        overwriteManualCategory:
+          type: boolean
 
     CategoryRuleApplicationResult:
       type: object
@@ -1287,6 +1333,36 @@ components:
         unchangedCount:
           type: integer
         uncategorizedCount:
+          type: integer
+
+    CategoryRuleApplicationPreview:
+      type: object
+      required: [matchedCount, changedCount, items]
+      properties:
+        matchedCount:
+          type: integer
+        changedCount:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategoryRuleApplicationPreviewItem"
+
+    CategoryRuleApplicationPreviewItem:
+      type: object
+      required: [transactionId, usageDate, merchantName, newCategoryId]
+      properties:
+        transactionId:
+          type: integer
+        usageDate:
+          type: string
+          format: date
+        merchantName:
+          type: string
+        currentCategoryId:
+          type: integer
+          nullable: true
+        newCategoryId:
           type: integer
 
     ClassificationCandidateListResponse:

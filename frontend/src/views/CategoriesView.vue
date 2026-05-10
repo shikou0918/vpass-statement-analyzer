@@ -10,9 +10,10 @@ import {
   listCategories,
   listCategoryRules,
   listClassificationCandidates,
+  previewCategoryRuleApplication,
   updateCategoryRule,
 } from '../api/client'
-import type { Category, CategoryRule, ClassificationCandidate } from '../api/types'
+import type { Category, CategoryRule, CategoryRuleApplicationPreview, ClassificationCandidate } from '../api/types'
 
 const categories = ref<Category[]>([])
 const rules = ref<CategoryRule[]>([])
@@ -31,6 +32,8 @@ const editRuleMatchType = ref<CategoryRule['matchType']>('contains')
 const editRulePattern = ref('')
 const editRuleCategoryId = ref('')
 const candidateCategoryIds = ref<Record<string, string>>({})
+const ruleApplicationPreview = ref<CategoryRuleApplicationPreview | null>(null)
+const previewResolver = ref<((ok: boolean) => void) | null>(null)
 
 const categoryNameById = computed(() => new Map(categories.value.map((category) => [category.id, category.name])))
 const newRuleIsDuplicate = computed(
@@ -72,8 +75,34 @@ function errorMessage(err: unknown, fallback: string) {
   return err instanceof ApiClientError ? err.apiError.message : fallback
 }
 
-async function applyRulesToExistingTransactions() {
-  return applyCategoryRules(true)
+type CategoryRulePayload = Omit<CategoryRule, 'id'>
+
+async function confirmRuleApplication(rule: CategoryRulePayload) {
+  const preview = await previewCategoryRuleApplication(rule, true)
+  if (preview.changedCount === 0) return true
+  return showRuleApplicationPreview(preview)
+}
+
+function showRuleApplicationPreview(preview: CategoryRuleApplicationPreview) {
+  ruleApplicationPreview.value = preview
+  return new Promise<boolean>((resolve) => {
+    previewResolver.value = resolve
+  })
+}
+
+function closeRuleApplicationPreview(ok: boolean) {
+  previewResolver.value?.(ok)
+  previewResolver.value = null
+  ruleApplicationPreview.value = null
+}
+
+function categoryLabel(categoryId?: number | null) {
+  if (!categoryId) return '未分類'
+  return categoryNameById.value.get(categoryId) ?? `#${categoryId}`
+}
+
+async function applyRuleToExistingTransactions(rule: CategoryRulePayload) {
+  return applyCategoryRules(true, rule)
 }
 
 async function load() {
@@ -138,13 +167,16 @@ async function addRule() {
   saving.value = true
   error.value = ''
   try {
-    await createCategoryRule({
+    const rule = {
       matchType: ruleMatchType.value,
       pattern: rulePattern.value.trim(),
       categoryId: Number(ruleCategoryId.value),
       priority: rules.value.length + 1,
-    })
-    const result = await applyRulesToExistingTransactions()
+    }
+    const ok = await confirmRuleApplication(rule)
+    if (!ok) return
+    await createCategoryRule(rule)
+    const result = await applyRuleToExistingTransactions(rule)
     rulePattern.value = ''
     await load()
     message.value = `分類ルールを作成しました。既存明細を ${result.updatedCount} 件更新しました`
@@ -169,13 +201,16 @@ async function createRuleFromCandidate(candidate: ClassificationCandidate) {
   saving.value = true
   error.value = ''
   try {
-    await createCategoryRule({
+    const rule = {
       matchType: 'contains',
       pattern: candidate.merchantName,
       categoryId: Number(categoryId),
       priority: rules.value.length + 1,
-    })
-    const result = await applyRulesToExistingTransactions()
+    } satisfies CategoryRulePayload
+    const ok = await confirmRuleApplication(rule)
+    if (!ok) return
+    await createCategoryRule(rule)
+    const result = await applyRuleToExistingTransactions(rule)
     delete candidateCategoryIds.value[candidate.merchantName]
     await load()
     message.value = `分類ルールを作成しました。既存明細を ${result.updatedCount} 件更新しました`
@@ -219,13 +254,16 @@ async function saveRule(rule: CategoryRule) {
   saving.value = true
   error.value = ''
   try {
-    await updateCategoryRule(rule.id, {
+    const nextRule = {
       matchType: editRuleMatchType.value,
       pattern: editRulePattern.value.trim(),
       categoryId: Number(editRuleCategoryId.value),
       priority: rule.priority,
-    })
-    const result = await applyRulesToExistingTransactions()
+    }
+    const ok = await confirmRuleApplication(nextRule)
+    if (!ok) return
+    await updateCategoryRule(rule.id, nextRule)
+    const result = await applyRuleToExistingTransactions(nextRule)
     cancelEditRule()
     await load()
     message.value = `分類ルールを更新しました。既存明細を ${result.updatedCount} 件更新しました`
@@ -397,6 +435,41 @@ onMounted(load)
             </tr>
           </tbody>
         </table>
+      </div>
+    </div>
+
+    <div v-if="ruleApplicationPreview" class="modal-backdrop" role="presentation">
+      <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="rule-application-title">
+        <header class="modal-header">
+          <h2 id="rule-application-title">既存明細を更新しますか？</h2>
+        </header>
+        <p class="muted-text">
+          この分類ルールに一致する既存明細 {{ ruleApplicationPreview.changedCount }} 件のカテゴリが更新されます。
+        </p>
+        <div class="table-wrap compact-table modal-table">
+          <table>
+            <thead>
+              <tr>
+                <th>利用日</th>
+                <th>利用先</th>
+                <th>現在のカテゴリ</th>
+                <th>更新後</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in ruleApplicationPreview.items" :key="item.transactionId">
+                <td>{{ item.usageDate }}</td>
+                <td>{{ item.merchantName }}</td>
+                <td>{{ categoryLabel(item.currentCategoryId) }}</td>
+                <td>{{ categoryLabel(item.newCategoryId) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <footer class="modal-actions">
+          <button type="button" class="secondary-button" @click="closeRuleApplicationPreview(false)">キャンセル</button>
+          <button type="button" @click="closeRuleApplicationPreview(true)">はい、更新する</button>
+        </footer>
       </div>
     </div>
   </section>

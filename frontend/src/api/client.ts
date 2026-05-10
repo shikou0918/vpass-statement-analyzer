@@ -2,6 +2,7 @@ import type {
   ApiError,
   Category,
   CategoryRule,
+  CategoryRuleApplicationPreview,
   CategorySummaryItem,
   ChartPoint,
   ClassificationCandidate,
@@ -129,13 +130,20 @@ export function deleteCategoryRule(id: number): Promise<void> {
   return request<void>(`/category-rules/${id}`, { method: 'DELETE' })
 }
 
+export function previewCategoryRuleApplication(body: Omit<CategoryRule, 'id'>, overwriteManualCategory: boolean) {
+  return request<CategoryRuleApplicationPreview>('/category-rule-application-previews', {
+    method: 'POST',
+    body: JSON.stringify({ ...body, overwriteManualCategory }),
+  })
+}
+
 export function listClassificationCandidates(): Promise<{ items: ClassificationCandidate[] }> {
   return request<{ items: ClassificationCandidate[] }>('/classification-candidates?limit=50')
 }
 
-export function applyCategoryRules(overwriteManualCategory: boolean) {
+export function applyCategoryRules(overwriteManualCategory: boolean, rule?: Omit<CategoryRule, 'id'>) {
   return request<{ matchedCount: number; updatedCount: number; unchangedCount: number; uncategorizedCount: number }>('/category-rule-applications', {
     method: 'POST',
-    body: JSON.stringify({ scope: 'all', overwriteManualCategory }),
+    body: JSON.stringify({ ...(rule ?? {}), scope: 'all', overwriteManualCategory }),
   })
 }

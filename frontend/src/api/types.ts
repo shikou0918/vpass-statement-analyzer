@@ -89,6 +89,20 @@ export type ClassificationCandidate = {
   transactionCount: number
 }
 
+export type CategoryRuleApplicationPreviewItem = {
+  transactionId: number
+  usageDate: string
+  merchantName: string
+  currentCategoryId?: number | null
+  newCategoryId: number
+}
+
+export type CategoryRuleApplicationPreview = {
+  matchedCount: number
+  changedCount: number
+  items: CategoryRuleApplicationPreviewItem[]
+}
+
 export type ChartPoint = {
   label: string
   amount: number

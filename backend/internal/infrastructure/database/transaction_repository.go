@@ -213,29 +213,66 @@ func (r transactionRepository) Summary(ctx context.Context, f usecase.SummaryFil
 }
 
 func (r transactionRepository) ApplyRule(ctx context.Context, rule domain.CategoryRule, overwrite bool) (int, int, error) {
+	models, err := r.matchingRuleCandidates(ctx, overwrite)
+	if err != nil {
+		return 0, 0, err
+	}
+	matched := 0
+	updated := 0
+	for _, m := range models {
+		if !matchRule(rule, m.MerchantName) {
+			continue
+		}
+		matched++
+		if m.CategoryID != nil && *m.CategoryID == rule.CategoryID {
+			continue
+		}
+		res := r.db.WithContext(ctx).Model(&TransactionModel{}).Where("id = ?", m.ID).Update("category_id", rule.CategoryID)
+		if res.Error != nil {
+			return matched, updated, res.Error
+		}
+		if res.RowsAffected > 0 {
+			updated++
+		}
+	}
+	return matched, updated, nil
+}
+
+func (r transactionRepository) PreviewRule(ctx context.Context, rule domain.CategoryRule, overwrite bool) (usecase.CategoryRuleApplicationPreview, error) {
+	models, err := r.matchingRuleCandidates(ctx, overwrite)
+	if err != nil {
+		return usecase.CategoryRuleApplicationPreview{}, err
+	}
+	preview := usecase.CategoryRuleApplicationPreview{Items: []usecase.CategoryRuleApplicationChange{}}
+	for _, m := range models {
+		if !matchRule(rule, m.MerchantName) {
+			continue
+		}
+		preview.MatchedCount++
+		if m.CategoryID == nil || *m.CategoryID != rule.CategoryID {
+			preview.ChangedCount++
+			preview.Items = append(preview.Items, usecase.CategoryRuleApplicationChange{
+				TransactionID:     m.ID,
+				UsageDate:         m.UsageDate.Format("2006-01-02"),
+				MerchantName:      m.MerchantName,
+				CurrentCategoryID: m.CategoryID,
+				NewCategoryID:     rule.CategoryID,
+			})
+		}
+	}
+	return preview, nil
+}
+
+func (r transactionRepository) matchingRuleCandidates(ctx context.Context, overwrite bool) ([]TransactionModel, error) {
 	var models []TransactionModel
 	query := r.db.WithContext(ctx).Model(&TransactionModel{})
 	if !overwrite {
 		query = query.Where("category_id is null")
 	}
 	if err := query.Find(&models).Error; err != nil {
-		return 0, 0, err
+		return nil, err
 	}
-	matched := 0
-	updated := 0
-	for _, m := range models {
-		if matchRule(rule, m.MerchantName) {
-			matched++
-			res := r.db.WithContext(ctx).Model(&TransactionModel{}).Where("id = ?", m.ID).Update("category_id", rule.CategoryID)
-			if res.Error != nil {
-				return matched, updated, res.Error
-			}
-			if res.RowsAffected > 0 {
-				updated++
-			}
-		}
-	}
-	return matched, updated, nil
+	return models, nil
 }
 
 func (r transactionRepository) ListClassificationCandidates(ctx context.Context, limit int) ([]usecase.ClassificationCandidate, error) {

@@ -378,6 +378,44 @@ h2 {
   gap: 8px;
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(15 23 42 / 45%);
+}
+
+.modal-panel {
+  width: min(920px, 100%);
+  max-height: min(720px, calc(100vh - 48px));
+  overflow: hidden;
+  display: grid;
+  gap: 14px;
+  border-radius: 8px;
+  background: #fff;
+  padding: 18px;
+  box-shadow: 0 24px 70px rgb(15 23 42 / 28%);
+}
+
+.modal-header h2 {
+  margin: 0;
+}
+
+.modal-table {
+  max-height: 440px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .bar-row,
 .ranking li,
 .item-list li {

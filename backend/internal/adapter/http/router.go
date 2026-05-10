@@ -44,6 +44,7 @@ func NewRouter(app *usecase.App, allowedOrigin string) http.Handler {
 	mux.HandleFunc("PATCH /category-rules/", h.updateCategoryRule)
 	mux.HandleFunc("DELETE /category-rules/", h.deleteCategoryRule)
 	mux.HandleFunc("GET /classification-candidates", h.listClassificationCandidates)
+	mux.HandleFunc("POST /category-rule-application-previews", h.previewCategoryRuleApplication)
 	mux.HandleFunc("POST /category-rule-applications", h.applyCategoryRules)
 	mux.HandleFunc("GET /exports/transactions", h.exportTransactions)
 	return h.cors(mux)
@@ -392,10 +393,17 @@ func (h *Handler) listClassificationCandidates(w http.ResponseWriter, r *http.Re
 }
 
 func (h *Handler) applyCategoryRules(w http.ResponseWriter, r *http.Request) {
-	var body struct {
-		OverwriteManualCategory bool `json:"overwriteManualCategory"`
-	}
+	var body categoryRuleApplicationRequest
 	if !decodeJSON(w, r, &body) {
+		return
+	}
+	if body.MatchType != "" || body.Pattern != "" || body.CategoryID != 0 {
+		matched, updated, err := h.app.ApplyCategoryRule(r.Context(), body.CategoryRuleInput, body.OverwriteManualCategory)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]int{"matchedCount": matched, "updatedCount": updated, "unchangedCount": matched - updated, "uncategorizedCount": 0})
 		return
 	}
 	matched, updated, unchanged, uncategorized, err := h.app.ApplyCategoryRules(r.Context(), body.OverwriteManualCategory)
@@ -404,6 +412,24 @@ func (h *Handler) applyCategoryRules(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]int{"matchedCount": matched, "updatedCount": updated, "unchangedCount": unchanged, "uncategorizedCount": uncategorized})
+}
+
+func (h *Handler) previewCategoryRuleApplication(w http.ResponseWriter, r *http.Request) {
+	var body categoryRuleApplicationRequest
+	if !decodeJSON(w, r, &body) {
+		return
+	}
+	preview, err := h.app.PreviewCategoryRuleApplication(r.Context(), body.CategoryRuleInput, body.OverwriteManualCategory)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, preview)
+}
+
+type categoryRuleApplicationRequest struct {
+	usecase.CategoryRuleInput
+	OverwriteManualCategory bool `json:"overwriteManualCategory"`
 }
 
 func (h *Handler) exportTransactions(w http.ResponseWriter, r *http.Request) {
