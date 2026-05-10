@@ -372,6 +372,12 @@ h2 {
   min-width: 640px;
 }
 
+.table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .bar-row,
 .ranking li,
 .item-list li {

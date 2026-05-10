@@ -5,10 +5,12 @@ import {
   createCategory,
   createCategoryRule,
   deleteCategory,
+  deleteCategoryRule,
   ApiClientError,
   listCategories,
   listCategoryRules,
   listClassificationCandidates,
+  updateCategoryRule,
 } from '../api/client'
 import type { Category, CategoryRule, ClassificationCandidate } from '../api/types'
 
@@ -24,12 +26,21 @@ const categoryColor = ref('#2563eb')
 const rulePattern = ref('')
 const ruleMatchType = ref<CategoryRule['matchType']>('contains')
 const ruleCategoryId = ref('')
+const editingRuleId = ref<number | null>(null)
+const editRuleMatchType = ref<CategoryRule['matchType']>('contains')
+const editRulePattern = ref('')
+const editRuleCategoryId = ref('')
 const candidateCategoryIds = ref<Record<string, string>>({})
 
 const categoryNameById = computed(() => new Map(categories.value.map((category) => [category.id, category.name])))
-const existingRuleKeys = computed(() => new Set(rules.value.map((rule) => ruleKey(rule.matchType, rule.pattern, rule.categoryId))))
 const newRuleIsDuplicate = computed(
-  () => Boolean(rulePattern.value.trim() && ruleCategoryId.value) && existingRuleKeys.value.has(ruleKey(ruleMatchType.value, rulePattern.value, ruleCategoryId.value)),
+  () => Boolean(rulePattern.value.trim() && ruleCategoryId.value) && ruleExists(ruleMatchType.value, rulePattern.value, ruleCategoryId.value),
+)
+const editRuleIsDuplicate = computed(
+  () =>
+    editingRuleId.value !== null &&
+    Boolean(editRulePattern.value.trim() && editRuleCategoryId.value) &&
+    ruleExists(editRuleMatchType.value, editRulePattern.value, editRuleCategoryId.value, editingRuleId.value),
 )
 const canAddRule = computed(() => Boolean(rulePattern.value.trim() && ruleCategoryId.value) && !newRuleIsDuplicate.value)
 
@@ -47,9 +58,14 @@ function ruleKey(matchType: CategoryRule['matchType'], pattern: string, category
   return `${matchType}:${pattern.trim()}:${categoryId}`
 }
 
+function ruleExists(matchType: CategoryRule['matchType'], pattern: string, categoryId: string | number, excludeId?: number) {
+  const key = ruleKey(matchType, pattern, categoryId)
+  return rules.value.some((rule) => rule.id !== excludeId && ruleKey(rule.matchType, rule.pattern, rule.categoryId) === key)
+}
+
 function candidateRuleExists(candidate: ClassificationCandidate) {
   const categoryId = candidateCategoryIds.value[candidate.merchantName]
-  return Boolean(categoryId) && existingRuleKeys.value.has(ruleKey('contains', candidate.merchantName, categoryId))
+  return Boolean(categoryId) && ruleExists('contains', candidate.merchantName, categoryId)
 }
 
 function errorMessage(err: unknown, fallback: string) {
@@ -170,6 +186,73 @@ async function createRuleFromCandidate(candidate: ClassificationCandidate) {
   }
 }
 
+function startEditRule(rule: CategoryRule) {
+  editingRuleId.value = rule.id
+  editRuleMatchType.value = rule.matchType
+  editRulePattern.value = rule.pattern
+  editRuleCategoryId.value = String(rule.categoryId)
+  error.value = ''
+  message.value = ''
+}
+
+function cancelEditRule() {
+  editingRuleId.value = null
+  editRulePattern.value = ''
+  editRuleCategoryId.value = ''
+  editRuleMatchType.value = 'contains'
+}
+
+async function saveRule(rule: CategoryRule) {
+  message.value = ''
+  if (!editRulePattern.value.trim()) {
+    error.value = '利用先パターンを入力してください'
+    return
+  }
+  if (!editRuleCategoryId.value) {
+    error.value = '分類先カテゴリを選択してください'
+    return
+  }
+  if (editRuleIsDuplicate.value) {
+    error.value = '同じ分類ルールが既に存在します'
+    return
+  }
+  saving.value = true
+  error.value = ''
+  try {
+    await updateCategoryRule(rule.id, {
+      matchType: editRuleMatchType.value,
+      pattern: editRulePattern.value.trim(),
+      categoryId: Number(editRuleCategoryId.value),
+      priority: rule.priority,
+    })
+    const result = await applyRulesToExistingTransactions()
+    cancelEditRule()
+    await load()
+    message.value = `分類ルールを更新しました。既存明細を ${result.updatedCount} 件更新しました`
+  } catch (err) {
+    error.value = errorMessage(err, '分類ルールを更新できませんでした')
+  } finally {
+    saving.value = false
+  }
+}
+
+async function removeRule(rule: CategoryRule) {
+  if (!window.confirm(`${rule.pattern} の分類ルールを削除します。既存明細のカテゴリは変更されません。`)) return
+  saving.value = true
+  error.value = ''
+  message.value = ''
+  try {
+    await deleteCategoryRule(rule.id)
+    if (editingRuleId.value === rule.id) cancelEditRule()
+    await load()
+    message.value = '分類ルールを削除しました'
+  } catch (err) {
+    error.value = errorMessage(err, '分類ルールを削除できませんでした')
+  } finally {
+    saving.value = false
+  }
+}
+
 onMounted(load)
 </script>
 
@@ -231,13 +314,46 @@ onMounted(load)
                 <th>条件</th>
                 <th>利用先パターン</th>
                 <th>分類先カテゴリ</th>
+                <th>操作</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="rule in rules" :key="rule.id">
-                <td><span class="badge">{{ matchTypeLabel(rule.matchType) }}</span></td>
-                <td>{{ rule.pattern }}</td>
-                <td>{{ categoryNameById.get(rule.categoryId) ?? `#${rule.categoryId}` }}</td>
+                <template v-if="editingRuleId === rule.id">
+                  <td>
+                    <select v-model="editRuleMatchType" :disabled="saving">
+                      <option value="contains">含む</option>
+                      <option value="startsWith">前方一致</option>
+                      <option value="equals">完全一致</option>
+                      <option value="regex">正規表現</option>
+                    </select>
+                  </td>
+                  <td><input v-model="editRulePattern" type="text" :disabled="saving" /></td>
+                  <td>
+                    <select v-model="editRuleCategoryId" :disabled="saving">
+                      <option value="">カテゴリ</option>
+                      <option v-for="category in categories" :key="category.id" :value="category.id">{{ category.name }}</option>
+                    </select>
+                  </td>
+                  <td>
+                    <div class="table-actions">
+                      <button type="button" :disabled="saving || editRuleIsDuplicate" @click="saveRule(rule)">保存</button>
+                      <button type="button" class="secondary-button" :disabled="saving" @click="cancelEditRule">キャンセル</button>
+                    </div>
+                    <p v-if="editRuleIsDuplicate" class="muted-text">同じ分類ルールが既に存在します。</p>
+                  </td>
+                </template>
+                <template v-else>
+                  <td><span class="badge">{{ matchTypeLabel(rule.matchType) }}</span></td>
+                  <td>{{ rule.pattern }}</td>
+                  <td>{{ categoryNameById.get(rule.categoryId) ?? `#${rule.categoryId}` }}</td>
+                  <td>
+                    <div class="table-actions">
+                      <button type="button" class="secondary-button" :disabled="saving" @click="startEditRule(rule)">編集</button>
+                      <button type="button" class="danger-button" :disabled="saving" @click="removeRule(rule)">削除</button>
+                    </div>
+                  </td>
+                </template>
               </tr>
             </tbody>
           </table>

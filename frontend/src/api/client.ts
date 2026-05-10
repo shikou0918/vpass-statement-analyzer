@@ -121,6 +121,14 @@ export function createCategoryRule(body: Omit<CategoryRule, 'id'>): Promise<Cate
   return request<CategoryRule>('/category-rules', { method: 'POST', body: JSON.stringify(body) })
 }
 
+export function updateCategoryRule(id: number, body: Omit<CategoryRule, 'id'>): Promise<CategoryRule> {
+  return request<CategoryRule>(`/category-rules/${id}`, { method: 'PATCH', body: JSON.stringify(body) })
+}
+
+export function deleteCategoryRule(id: number): Promise<void> {
+  return request<void>(`/category-rules/${id}`, { method: 'DELETE' })
+}
+
 export function listClassificationCandidates(): Promise<{ items: ClassificationCandidate[] }> {
   return request<{ items: ClassificationCandidate[] }>('/classification-candidates?limit=50')
 }
