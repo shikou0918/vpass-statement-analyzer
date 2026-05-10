@@ -5,6 +5,7 @@ import {
   createCategory,
   createCategoryRule,
   deleteCategory,
+  ApiClientError,
   listCategories,
   listCategoryRules,
   listClassificationCandidates,
@@ -31,6 +32,7 @@ const existingRuleKeys = computed(() => new Set(rules.value.map((rule) => ruleKe
 const newRuleIsDuplicate = computed(
   () => Boolean(rulePattern.value.trim() && ruleCategoryId.value) && existingRuleKeys.value.has(ruleKey(ruleMatchType.value, rulePattern.value, ruleCategoryId.value)),
 )
+const canAddRule = computed(() => Boolean(rulePattern.value.trim() && ruleCategoryId.value) && !newRuleIsDuplicate.value)
 
 function matchTypeLabel(matchType: CategoryRule['matchType']) {
   const labels: Record<CategoryRule['matchType'], string> = {
@@ -49,6 +51,14 @@ function ruleKey(matchType: CategoryRule['matchType'], pattern: string, category
 function candidateRuleExists(candidate: ClassificationCandidate) {
   const categoryId = candidateCategoryIds.value[candidate.merchantName]
   return Boolean(categoryId) && existingRuleKeys.value.has(ruleKey('contains', candidate.merchantName, categoryId))
+}
+
+function errorMessage(err: unknown, fallback: string) {
+  return err instanceof ApiClientError ? err.apiError.message : fallback
+}
+
+async function applyRulesToUnclassified() {
+  return applyCategoryRules(false)
 }
 
 async function load() {
@@ -97,7 +107,15 @@ async function removeCategory(category: Category) {
 }
 
 async function addRule() {
-  if (!rulePattern.value.trim() || !ruleCategoryId.value) return
+  message.value = ''
+  if (!rulePattern.value.trim()) {
+    error.value = '利用先パターンを入力してください'
+    return
+  }
+  if (!ruleCategoryId.value) {
+    error.value = '分類先カテゴリを選択してください'
+    return
+  }
   if (newRuleIsDuplicate.value) {
     error.value = '同じ分類ルールが既に存在します'
     return
@@ -111,11 +129,12 @@ async function addRule() {
       categoryId: Number(ruleCategoryId.value),
       priority: rules.value.length + 1,
     })
+    const result = await applyRulesToUnclassified()
     rulePattern.value = ''
     await load()
-    message.value = '分類ルールを作成しました'
-  } catch {
-    error.value = '分類ルールを作成できませんでした'
+    message.value = `分類ルールを作成しました。未分類明細を ${result.updatedCount} 件更新しました`
+  } catch (err) {
+    error.value = errorMessage(err, '分類ルールを作成できませんでした')
   } finally {
     saving.value = false
   }
@@ -123,7 +142,11 @@ async function addRule() {
 
 async function createRuleFromCandidate(candidate: ClassificationCandidate) {
   const categoryId = candidateCategoryIds.value[candidate.merchantName]
-  if (!categoryId) return
+  message.value = ''
+  if (!categoryId) {
+    error.value = '分類先カテゴリを選択してください'
+    return
+  }
   if (candidateRuleExists(candidate)) {
     error.value = '同じ分類ルールが既に存在します'
     return
@@ -137,11 +160,12 @@ async function createRuleFromCandidate(candidate: ClassificationCandidate) {
       categoryId: Number(categoryId),
       priority: rules.value.length + 1,
     })
+    const result = await applyRulesToUnclassified()
     delete candidateCategoryIds.value[candidate.merchantName]
     await load()
-    message.value = '分類ルールを作成しました'
-  } catch {
-    error.value = '分類ルールを作成できませんでした'
+    message.value = `分類ルールを作成しました。未分類明細を ${result.updatedCount} 件更新しました`
+  } catch (err) {
+    error.value = errorMessage(err, '分類ルールを作成できませんでした')
   } finally {
     saving.value = false
   }
@@ -210,8 +234,9 @@ onMounted(load)
               <option v-for="category in categories" :key="category.id" :value="category.id">{{ category.name }}</option>
             </select>
           </label>
-          <button type="button" :disabled="saving || newRuleIsDuplicate" @click="addRule">ルール追加</button>
+          <button type="button" :disabled="saving || !canAddRule" @click="addRule">ルール追加</button>
         </div>
+        <p v-if="!rulePattern.trim() || !ruleCategoryId" class="muted-text">利用先パターンと分類先カテゴリを入力すると追加できます。</p>
         <p v-if="newRuleIsDuplicate" class="warning-line">同じ分類ルールが既に存在します。</p>
         <div v-if="rules.length === 0" class="empty">分類ルールがありません。</div>
         <div v-else class="table-wrap compact-table">

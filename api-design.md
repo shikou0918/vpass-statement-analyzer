@@ -179,7 +179,7 @@ Request:
 - `previewId`
 - `fileHash`
 - `confirmedMapping`
-- `options.applyCategoryRules`
+- `options.applyCategoryRules` は互換性のため受け付けるが、CSV保存時は保存済み分類ルールを常に未分類明細へ自動適用する
 
 Response:
 

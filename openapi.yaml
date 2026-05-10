@@ -915,6 +915,8 @@ components:
             applyCategoryRules:
               type: boolean
               default: true
+              deprecated: true
+              description: 互換性のため受け付ける。CSV保存時は値に関係なく保存済み分類ルールを未分類明細へ自動適用する。
 
     ConfirmedImportMapping:
       type: object

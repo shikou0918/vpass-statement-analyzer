@@ -161,6 +161,72 @@ func TestImportPreviewAndDuplicateImport(t *testing.T) {
 	}
 }
 
+func TestImportAppliesExistingCategoryRules(t *testing.T) {
+	router := newTestServer(t)
+
+	createCategoryReq := httptest.NewRequest(http.MethodPost, "/categories", strings.NewReader(`{"name":"コンビニ","color":"#22c55e"}`))
+	createCategoryReq.Header.Set("Content-Type", "application/json")
+	createCategoryRes := httptest.NewRecorder()
+	router.ServeHTTP(createCategoryRes, createCategoryReq)
+	if createCategoryRes.Code != http.StatusCreated {
+		t.Fatalf("expected status 201, got %d: %s", createCategoryRes.Code, createCategoryRes.Body.String())
+	}
+	var category struct {
+		ID int64 `json:"id"`
+	}
+	if err := json.Unmarshal(createCategoryRes.Body.Bytes(), &category); err != nil {
+		t.Fatalf("decode category: %v", err)
+	}
+
+	ruleBody := `{"matchType":"contains","pattern":"ローソン","categoryId":` + strconv.FormatInt(category.ID, 10) + `,"priority":1}`
+	createRuleReq := httptest.NewRequest(http.MethodPost, "/category-rules", strings.NewReader(ruleBody))
+	createRuleReq.Header.Set("Content-Type", "application/json")
+	createRuleRes := httptest.NewRecorder()
+	router.ServeHTTP(createRuleRes, createRuleReq)
+	if createRuleRes.Code != http.StatusCreated {
+		t.Fatalf("expected status 201, got %d: %s", createRuleRes.Code, createRuleRes.Body.String())
+	}
+
+	preview := createPreview(t, router, "利用日,利用先,支払月,利用金額,請求金額\n2026-05-01,ローソン,2026-06,1000,1000\n")
+	mapping := map[string]string{}
+	for _, candidate := range preview.MappingCandidates {
+		mapping[strconv.Itoa(candidate.SourceColumnIndex)] = candidate.TargetField
+	}
+	importReqBody, err := json.Marshal(map[string]any{
+		"previewId":        preview.PreviewID,
+		"fileHash":         preview.FileHash,
+		"confirmedMapping": mapping,
+	})
+	if err != nil {
+		t.Fatalf("marshal import request: %v", err)
+	}
+	importReq := httptest.NewRequest(http.MethodPost, "/imports", bytes.NewReader(importReqBody))
+	importReq.Header.Set("Content-Type", "application/json")
+	importRes := httptest.NewRecorder()
+	router.ServeHTTP(importRes, importReq)
+	if importRes.Code != http.StatusCreated {
+		t.Fatalf("expected status 201, got %d: %s", importRes.Code, importRes.Body.String())
+	}
+
+	listReq := httptest.NewRequest(http.MethodGet, "/transactions?page=1&pageSize=50", nil)
+	listRes := httptest.NewRecorder()
+	router.ServeHTTP(listRes, listReq)
+	if listRes.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", listRes.Code, listRes.Body.String())
+	}
+	var list struct {
+		Items []struct {
+			CategoryID *int64 `json:"categoryId"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(listRes.Body.Bytes(), &list); err != nil {
+		t.Fatalf("decode transactions: %v", err)
+	}
+	if len(list.Items) != 1 || list.Items[0].CategoryID == nil || *list.Items[0].CategoryID != category.ID {
+		t.Fatalf("imported transaction should be categorized by existing rule: %+v", list.Items)
+	}
+}
+
 func TestDeleteImportRemovesRelatedTransactionsAndAllowsReimport(t *testing.T) {
 	router := newTestServer(t)
 	csvBody := "利用日,利用先,支払月,利用金額,請求金額\n2026-05-01,コンビニ,2026-06,1000,1000\n"

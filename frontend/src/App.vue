@@ -42,7 +42,6 @@ const title = computed(() => String(route.meta.title ?? 'インポート'))
     <main class="main">
       <header class="topbar">
         <h1>{{ title }}</h1>
-        <span class="status-pill">ローカル実行</span>
       </header>
 
       <RouterView />

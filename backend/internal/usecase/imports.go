@@ -155,6 +155,15 @@ func (a *App) CreateImport(ctx context.Context, in CreateImportInput) (CreateImp
 		if err != nil {
 			return err
 		}
+		rules, err := repos.CategoryRules().List(ctx)
+		if err != nil {
+			return err
+		}
+		for _, rule := range rules {
+			if _, _, err := repos.Transactions().ApplyRule(ctx, rule, false); err != nil {
+				return err
+			}
+		}
 		result = CreateImportResult{
 			ImportFile:            createdFile,
 			ImportedCount:         created,

@@ -150,7 +150,7 @@ stateDiagram-v2
 | 操作 | API |
 |---|---|
 | CSVプレビュー作成 | `createImportPreview` / `POST /import-previews` |
-| CSV保存 | `createImport` / `POST /imports` |
+| CSV保存 | `createImport` / `POST /imports`。保存後に自動分類ルールを未分類明細へ適用する |
 | インポート履歴取得 | `listImports` / `GET /imports` |
 
 ## 5. ダッシュボード画面
@@ -256,7 +256,7 @@ stateDiagram-v2
 | カテゴリフォーム | name、color |
 | 分類ルール一覧 | priority、matchType、pattern、category、編集/削除 |
 | ルールフォーム | matchType、pattern、categoryId、priority |
-| 未分類候補 | 未分類の利用先名、件数、カテゴリ選択、ルール化 |
+| 未分類候補 | 未分類の利用先名、件数、カテゴリ選択、ルール化、作成後の未分類明細自動更新 |
 | 再適用パネル | 対象範囲、手動カテゴリ上書き有無、実行 |
 
 ### 7.3 バリデーション
