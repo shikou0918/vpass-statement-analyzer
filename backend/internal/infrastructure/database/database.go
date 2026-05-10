@@ -15,24 +15,7 @@ func Open(path string) (*gorm.DB, error) {
 }
 
 func Migrate(db *gorm.DB) error {
-	if err := deduplicateCategoryRules(db); err != nil {
-		return err
-	}
 	return db.AutoMigrate(&ImportFileModel{}, &ImportMappingModel{}, &ImportErrorModel{}, &TransactionModel{}, &CategoryModel{}, &CategoryRuleModel{}, &SettingModel{})
-}
-
-func deduplicateCategoryRules(db *gorm.DB) error {
-	if !db.Migrator().HasTable(&CategoryRuleModel{}) {
-		return nil
-	}
-	return db.Exec(`
-		DELETE FROM category_rule_models
-		WHERE id NOT IN (
-			SELECT MIN(id)
-			FROM category_rule_models
-			GROUP BY match_type, pattern, category_id
-		)
-	`).Error
 }
 
 type Repositories struct {

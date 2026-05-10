@@ -5,47 +5,26 @@ import (
 	"testing"
 )
 
-func TestMigrateDeduplicatesCategoryRulesBeforeUniqueIndex(t *testing.T) {
+func TestMigrateCreatesUniqueCategoryRuleIndex(t *testing.T) {
 	dbName := strings.NewReplacer("/", "_", " ", "_").Replace(t.Name())
 	db, err := Open("file:" + dbName + "?mode=memory&cache=shared")
 	if err != nil {
 		t.Fatalf("open database: %v", err)
 	}
-	if err := db.Exec(`
-		CREATE TABLE category_rule_models (
-			id integer PRIMARY KEY AUTOINCREMENT,
-			match_type text,
-			pattern text,
-			category_id integer,
-			priority integer
-		)
-	`).Error; err != nil {
-		t.Fatalf("create legacy table: %v", err)
-	}
-	if err := db.Exec(`
-		INSERT INTO category_rule_models (match_type, pattern, category_id, priority)
-		VALUES
-			('contains', 'ローソン', 1, 1),
-			('contains', 'ローソン', 1, 2),
-			('contains', 'ローソン', 2, 3)
-	`).Error; err != nil {
-		t.Fatalf("insert legacy duplicates: %v", err)
-	}
-
 	if err := Migrate(db); err != nil {
 		t.Fatalf("migrate database: %v", err)
 	}
 
-	var count int64
-	if err := db.Model(&CategoryRuleModel{}).Count(&count).Error; err != nil {
-		t.Fatalf("count category rules: %v", err)
+	first := CategoryRuleModel{MatchType: "contains", Pattern: "ローソン", CategoryID: 1, Priority: 1}
+	if err := db.Create(&first).Error; err != nil {
+		t.Fatalf("create first category rule: %v", err)
 	}
-	if count != 2 {
-		t.Fatalf("expected exact duplicate to be removed, got %d rules", count)
-	}
-
-	err = db.Create(&CategoryRuleModel{MatchType: "contains", Pattern: "ローソン", CategoryID: 1, Priority: 4}).Error
-	if err == nil {
+	duplicate := CategoryRuleModel{MatchType: "contains", Pattern: "ローソン", CategoryID: 1, Priority: 2}
+	if err := db.Create(&duplicate).Error; err == nil {
 		t.Fatal("expected duplicate category rule insert to fail")
+	}
+	differentCategory := CategoryRuleModel{MatchType: "contains", Pattern: "ローソン", CategoryID: 2, Priority: 3}
+	if err := db.Create(&differentCategory).Error; err != nil {
+		t.Fatalf("same pattern can be used for a different category: %v", err)
 	}
 }
