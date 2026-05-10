@@ -10,7 +10,6 @@ import type {
   ListResponse,
   MonthlySummary,
   RankingItem,
-  Settings,
   Transaction,
 } from './types'
 
@@ -131,12 +130,4 @@ export function applyCategoryRules(overwriteManualCategory: boolean) {
     method: 'POST',
     body: JSON.stringify({ scope: 'all', overwriteManualCategory }),
   })
-}
-
-export function getSettings(): Promise<Settings> {
-  return request<Settings>('/settings')
-}
-
-export function updateSettings(settings: Settings): Promise<Settings> {
-  return request<Settings>('/settings', { method: 'PATCH', body: JSON.stringify(settings) })
 }

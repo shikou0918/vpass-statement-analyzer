@@ -24,7 +24,6 @@ const categoryColor = ref('#2563eb')
 const rulePattern = ref('')
 const ruleMatchType = ref<CategoryRule['matchType']>('contains')
 const ruleCategoryId = ref('')
-const overwriteManualCategory = ref(false)
 const candidateCategoryIds = ref<Record<string, string>>({})
 
 const categoryNameById = computed(() => new Map(categories.value.map((category) => [category.id, category.name])))
@@ -57,8 +56,8 @@ function errorMessage(err: unknown, fallback: string) {
   return err instanceof ApiClientError ? err.apiError.message : fallback
 }
 
-async function applyRulesToUnclassified() {
-  return applyCategoryRules(false)
+async function applyRulesToExistingTransactions() {
+  return applyCategoryRules(true)
 }
 
 async function load() {
@@ -129,10 +128,10 @@ async function addRule() {
       categoryId: Number(ruleCategoryId.value),
       priority: rules.value.length + 1,
     })
-    const result = await applyRulesToUnclassified()
+    const result = await applyRulesToExistingTransactions()
     rulePattern.value = ''
     await load()
-    message.value = `分類ルールを作成しました。未分類明細を ${result.updatedCount} 件更新しました`
+    message.value = `分類ルールを作成しました。既存明細を ${result.updatedCount} 件更新しました`
   } catch (err) {
     error.value = errorMessage(err, '分類ルールを作成できませんでした')
   } finally {
@@ -160,26 +159,12 @@ async function createRuleFromCandidate(candidate: ClassificationCandidate) {
       categoryId: Number(categoryId),
       priority: rules.value.length + 1,
     })
-    const result = await applyRulesToUnclassified()
+    const result = await applyRulesToExistingTransactions()
     delete candidateCategoryIds.value[candidate.merchantName]
     await load()
-    message.value = `分類ルールを作成しました。未分類明細を ${result.updatedCount} 件更新しました`
+    message.value = `分類ルールを作成しました。既存明細を ${result.updatedCount} 件更新しました`
   } catch (err) {
     error.value = errorMessage(err, '分類ルールを作成できませんでした')
-  } finally {
-    saving.value = false
-  }
-}
-
-async function reapplyRules() {
-  if (!window.confirm('分類ルールを既存明細へ再適用します。')) return
-  saving.value = true
-  error.value = ''
-  try {
-    const result = await applyCategoryRules(overwriteManualCategory.value)
-    message.value = `再適用しました: 更新 ${result.updatedCount} 件 / 一致 ${result.matchedCount} 件`
-  } catch {
-    error.value = '分類ルールを再適用できませんでした'
   } finally {
     saving.value = false
   }
@@ -257,12 +242,6 @@ onMounted(load)
             </tbody>
           </table>
         </div>
-        <div class="divider" />
-        <label class="check-row">
-          <input v-model="overwriteManualCategory" type="checkbox" />
-          手動カテゴリも上書きする
-        </label>
-        <button type="button" :disabled="saving || rules.length === 0" @click="reapplyRules">既存明細へ適用</button>
       </div>
     </div>
 

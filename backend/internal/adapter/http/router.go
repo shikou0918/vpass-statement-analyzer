@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 
-	"vpass-statement-analyzer/backend/internal/domain"
 	"vpass-statement-analyzer/backend/internal/usecase"
 )
 
@@ -47,8 +46,6 @@ func NewRouter(app *usecase.App, allowedOrigin string) http.Handler {
 	mux.HandleFunc("GET /classification-candidates", h.listClassificationCandidates)
 	mux.HandleFunc("POST /category-rule-applications", h.applyCategoryRules)
 	mux.HandleFunc("GET /exports/transactions", h.exportTransactions)
-	mux.HandleFunc("GET /settings", h.getSettings)
-	mux.HandleFunc("PATCH /settings", h.updateSettings)
 	return h.cors(mux)
 }
 
@@ -427,28 +424,6 @@ func (h *Handler) exportTransactions(w http.ResponseWriter, r *http.Request) {
 		_ = cw.Write([]string{strconv.FormatInt(item.ID, 10), item.UsageDate.Format("2006-01-02"), item.MerchantName, item.BillingMonth, intPtr(item.UsageAmount), intPtr(item.BilledAmount), intPtr(item.CategoryID), item.Memo})
 	}
 	cw.Flush()
-}
-
-func (h *Handler) getSettings(w http.ResponseWriter, r *http.Request) {
-	item, err := h.app.GetSettings(r.Context())
-	if err != nil {
-		writeError(w, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, settingsToResponse(item))
-}
-
-func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
-	var body domain.AppSettings
-	if !decodeJSON(w, r, &body) {
-		return
-	}
-	item, err := h.app.UpdateSettings(r.Context(), body)
-	if err != nil {
-		writeError(w, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, settingsToResponse(item))
 }
 
 func summaryFilter(r *http.Request) usecase.SummaryFilter {

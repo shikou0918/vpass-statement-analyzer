@@ -139,13 +139,11 @@
 
 `/category-rule-applications` は処理リソースとして扱う。初期版では同期処理で結果件数を即時返す。将来、対象件数が増えた場合は `applicationId` を永続化して進捗取得 API を追加する。
 
-### 3.5 エクスポート・設定
+### 3.5 エクスポート
 
 | Method | Path | operationId | 概要 |
 |---|---|---|---|
 | GET | `/exports/transactions` | `exportTransactions` | 明細を CSV または JSON でエクスポートする |
-| GET | `/settings` | `getSettings` | アプリ設定を取得する |
-| PATCH | `/settings` | `updateSettings` | アプリ設定を更新する |
 
 ## 4. 主要リクエスト/レスポンス
 

@@ -118,11 +118,6 @@ export type CategorySummaryItem = {
   ratio: number
 }
 
-export type Settings = {
-  defaultBasisDate: 'billingMonth' | 'usageDate'
-  defaultBasisAmount: 'billedAmount' | 'usageAmount'
-}
-
 export type ListResponse<T> = {
   items: T[]
   pagination?: Pagination

@@ -68,8 +68,3 @@ type CategoryRule struct {
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
 }
-
-type AppSettings struct {
-	DefaultBasisDate   string
-	DefaultBasisAmount string
-}

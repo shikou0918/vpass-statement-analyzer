@@ -68,9 +68,3 @@ type CategoryRuleModel struct {
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
 }
-
-type SettingModel struct {
-	Key       string `gorm:"primaryKey"`
-	Value     string
-	UpdatedAt time.Time
-}

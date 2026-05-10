@@ -38,7 +38,6 @@ Vpass明細CSVをローカル環境で取り込み、明細確認・分類・集
 | カテゴリ・ルール管理 | `/categories` | カテゴリと分類ルールを管理する |
 | 分析 | `/analytics` | 長期傾向、固定費候補、少額高頻度支出を確認する |
 | データ管理 | `/data` | インポート履歴、削除、エクスポートを扱う |
-| 設定 | `/settings` | 集計基準などを変更する |
 
 ### 2.2 基本レイアウト
 
@@ -189,7 +188,6 @@ stateDiagram-v2
 | 月次サマリー取得 | `getMonthlySummary` / `GET /summaries/monthly` |
 | 利用先別ランキング取得 | `getMerchantSummary` / `GET /summaries/merchants` |
 | カテゴリ別内訳取得 | `getCategorySummary` / `GET /summaries/categories` |
-| 設定取得 | `getSettings` / `GET /settings` |
 
 ## 6. 明細一覧画面
 
@@ -256,8 +254,7 @@ stateDiagram-v2
 | カテゴリフォーム | name、color |
 | 分類ルール一覧 | priority、matchType、pattern、category、編集/削除 |
 | ルールフォーム | matchType、pattern、categoryId、priority |
-| 未分類候補 | 未分類の利用先名、件数、カテゴリ選択、ルール化、作成後の未分類明細自動更新 |
-| 再適用パネル | 対象範囲、手動カテゴリ上書き有無、実行 |
+| 未分類候補 | 未分類の利用先名、件数、カテゴリ選択、ルール化、作成後の既存明細自動更新 |
 
 ### 7.3 バリデーション
 
@@ -294,18 +291,6 @@ stateDiagram-v2
 | ボタン | `分類ルールを削除` |
 | 成功 | 一覧から削除、Toast |
 
-#### 分類ルール再適用
-
-| 項目 | 仕様 |
-|---|---|
-| 対象名 | 分類ルール全体 |
-| 影響件数 | 事前に分かる場合は対象件数を表示。不明なら「実行後に結果を表示」 |
-| 重要設定 | 手動カテゴリを上書きするか |
-| ボタン | `分類ルールを再適用` |
-| 実行中 | ボタン disabled、処理中表示 |
-| 成功 | matched/updated/unchanged/uncategorized を結果表示 |
-| 失敗 | 変更有無を分かる範囲で表示し、再試行導線 |
-
 ### 7.5 利用API
 
 | 操作 | API |
@@ -315,10 +300,9 @@ stateDiagram-v2
 | カテゴリ更新 | `updateCategory` / `PATCH /categories/{categoryId}` |
 | カテゴリ削除 | `deleteCategory` / `DELETE /categories/{categoryId}` |
 | 分類ルール一覧取得 | `listCategoryRules` / `GET /category-rules` |
-| 分類ルール作成 | `createCategoryRule` / `POST /category-rules` |
+| 分類ルール作成 | `createCategoryRule` / `POST /category-rules` 後に `createCategoryRuleApplication` を上書きありで実行 |
 | 分類ルール更新 | `updateCategoryRule` / `PATCH /category-rules/{categoryRuleId}` |
 | 分類ルール削除 | `deleteCategoryRule` / `DELETE /category-rules/{categoryRuleId}` |
-| 分類ルール再適用 | `createCategoryRuleApplication` / `POST /category-rule-applications` |
 | 未分類候補取得 | `listClassificationCandidates` / `GET /classification-candidates` |
 
 ## 8. 分析画面
@@ -400,26 +384,6 @@ stateDiagram-v2
 | インポート削除 | `deleteImport` / `DELETE /imports/{importFileId}` |
 | 明細エクスポート | `exportTransactions` / `GET /exports/transactions` |
 
-## 10. 設定画面
-
-### 10.1 目的
-
-集計基準など、画面表示の既定値を設定する。
-
-### 10.2 項目
-
-| 項目 | 値 | 初期値 |
-|---|---|---|
-| 集計日付基準 | `billingMonth` / `usageDate` | `billingMonth` |
-| 集計金額基準 | `billedAmount` / `usageAmount` | `billedAmount` |
-
-### 10.3 利用API
-
-| 操作 | API |
-|---|---|
-| 設定取得 | `getSettings` / `GET /settings` |
-| 設定更新 | `updateSettings` / `PATCH /settings` |
-
 ## 11. 画面/API対応表
 
 | 画面 | 主な操作 | operationId |
@@ -434,7 +398,6 @@ stateDiagram-v2
 | 明細一覧 | 明細更新 | `updateTransaction` |
 | カテゴリ・ルール管理 | カテゴリCRUD | `listCategories`, `createCategory`, `updateCategory`, `deleteCategory` |
 | カテゴリ・ルール管理 | 分類ルールCRUD | `listCategoryRules`, `createCategoryRule`, `updateCategoryRule`, `deleteCategoryRule` |
-| カテゴリ・ルール管理 | 分類ルール再適用 | `createCategoryRuleApplication` |
 | 分析 | 月別推移 | `getMonthlyTrends` |
 | 分析 | 利用先推移 | `getMerchantTrends` |
 | 分析 | カテゴリ推移 | `getCategoryTrends` |
@@ -442,7 +405,6 @@ stateDiagram-v2
 | 分析 | 少額高頻度候補 | `listSmallFrequentTransactions` |
 | データ管理 | インポート履歴/詳細/削除 | `listImports`, `getImport`, `deleteImport` |
 | データ管理 | エクスポート | `exportTransactions` |
-| 設定 | 設定取得/更新 | `getSettings`, `updateSettings` |
 
 ## 12. アクセシビリティ・レスポンシブ
 

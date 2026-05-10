@@ -1,10 +1,6 @@
 package usecase
 
-import (
-	"context"
-
-	"vpass-statement-analyzer/backend/internal/domain"
-)
+import "context"
 
 type MonthlySummaryResponse struct {
 	Month            string       `json:"month"`
@@ -68,18 +64,4 @@ func (a *App) RecurringCandidates(ctx context.Context, f SummaryFilter) ([]Recur
 func (a *App) SmallFrequent(ctx context.Context, f SummaryFilter) ([]SmallFrequentCandidate, error) {
 	rows, err := a.repos.Transactions().Summary(ctx, f)
 	return rows.SmallFrequent, err
-}
-
-func (a *App) GetSettings(ctx context.Context) (domain.AppSettings, error) {
-	return a.repos.Settings().Get(ctx)
-}
-
-func (a *App) UpdateSettings(ctx context.Context, in domain.AppSettings) (domain.AppSettings, error) {
-	if in.DefaultBasisDate != "billingMonth" && in.DefaultBasisDate != "usageDate" {
-		return domain.AppSettings{}, BadRequest("defaultBasisDate が不正です", map[string]any{"field": "defaultBasisDate"})
-	}
-	if in.DefaultBasisAmount != "billedAmount" && in.DefaultBasisAmount != "usageAmount" {
-		return domain.AppSettings{}, BadRequest("defaultBasisAmount が不正です", map[string]any{"field": "defaultBasisAmount"})
-	}
-	return a.repos.Settings().Update(ctx, in)
 }

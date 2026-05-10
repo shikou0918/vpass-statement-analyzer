@@ -59,11 +59,6 @@ type categoryRuleResponse struct {
 	UpdatedAt  time.Time `json:"updatedAt"`
 }
 
-type settingsResponse struct {
-	DefaultBasisDate   string `json:"defaultBasisDate"`
-	DefaultBasisAmount string `json:"defaultBasisAmount"`
-}
-
 func importFileToResponse(item domain.ImportFile) importFileResponse {
 	return importFileResponse{
 		ID:             item.ID,
@@ -123,13 +118,6 @@ func categoryRuleToResponse(item domain.CategoryRule) categoryRuleResponse {
 		Priority:   item.Priority,
 		CreatedAt:  item.CreatedAt,
 		UpdatedAt:  item.UpdatedAt,
-	}
-}
-
-func settingsToResponse(item domain.AppSettings) settingsResponse {
-	return settingsResponse{
-		DefaultBasisDate:   item.DefaultBasisDate,
-		DefaultBasisAmount: item.DefaultBasisAmount,
 	}
 }
 

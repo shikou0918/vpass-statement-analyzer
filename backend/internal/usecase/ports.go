@@ -11,7 +11,6 @@ type TxRepositories interface {
 	Transactions() TransactionRepository
 	Categories() CategoryRepository
 	CategoryRules() CategoryRuleRepository
-	Settings() SettingRepository
 }
 
 type TxManager interface {
@@ -53,9 +52,4 @@ type CategoryRuleRepository interface {
 	Create(ctx context.Context, r domain.CategoryRule) (domain.CategoryRule, error)
 	Update(ctx context.Context, id int64, in CategoryRuleInput) (*domain.CategoryRule, error)
 	Delete(ctx context.Context, id int64) error
-}
-
-type SettingRepository interface {
-	Get(ctx context.Context) (domain.AppSettings, error)
-	Update(ctx context.Context, s domain.AppSettings) (domain.AppSettings, error)
 }

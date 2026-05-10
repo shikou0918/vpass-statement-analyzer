@@ -4,7 +4,6 @@ import DashboardView from './views/DashboardView.vue'
 import TransactionsView from './views/TransactionsView.vue'
 import CategoriesView from './views/CategoriesView.vue'
 import DataView from './views/DataView.vue'
-import SettingsView from './views/SettingsView.vue'
 
 export const routes = [
   { path: '/', redirect: '/imports/new' },
@@ -13,7 +12,6 @@ export const routes = [
   { path: '/transactions', name: 'transactions', component: TransactionsView, meta: { title: '明細一覧' } },
   { path: '/categories', name: 'categories', component: CategoriesView, meta: { title: 'カテゴリ・ルール' } },
   { path: '/data', name: 'data', component: DataView, meta: { title: 'データ管理' } },
-  { path: '/settings', name: 'settings', component: SettingsView, meta: { title: '設定' } },
   { path: '/:pathMatch(.*)*', redirect: '/imports/new' },
 ]
 

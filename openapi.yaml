@@ -21,8 +21,6 @@ tags:
     description: 利用先名に基づく分類ルール管理
   - name: Exports
     description: 明細のエクスポート
-  - name: Settings
-    description: アプリ設定
 paths:
   /import-previews:
     post:
@@ -602,38 +600,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TransactionListResponse"
-
-  /settings:
-    get:
-      operationId: getSettings
-      tags: [Settings]
-      summary: アプリ設定を取得する
-      responses:
-        "200":
-          description: アプリ設定
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AppSettings"
-    patch:
-      operationId: updateSettings
-      tags: [Settings]
-      summary: アプリ設定を更新する
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UpdateSettingsRequest"
-      responses:
-        "200":
-          description: 更新後のアプリ設定
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AppSettings"
-        "400":
-          $ref: "#/components/responses/BadRequest"
 
 components:
   parameters:
@@ -1345,20 +1311,3 @@ components:
       type: string
       enum: [csv, json]
       default: csv
-
-    AppSettings:
-      type: object
-      required: [basisDate, basisAmount]
-      properties:
-        basisDate:
-          $ref: "#/components/schemas/BasisDate"
-        basisAmount:
-          $ref: "#/components/schemas/BasisAmount"
-
-    UpdateSettingsRequest:
-      type: object
-      properties:
-        basisDate:
-          $ref: "#/components/schemas/BasisDate"
-        basisAmount:
-          $ref: "#/components/schemas/BasisAmount"

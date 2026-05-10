@@ -145,7 +145,7 @@ flowchart TD
 | インポート | CSVの読み込み、ヘッダー/列構成の検出、項目マッピング結果の確認、エラー検出、重複判定結果の提示 |
 | ダッシュボード | 支出総額、前月比、ランキング、内訳、推移を一目で確認できる状態にする |
 | 明細一覧 | 明細検索、絞り込み、並び替え、カテゴリ手動補正を行う |
-| カテゴリ・ルール管理 | カテゴリと利用先名ルールを独立管理し、未分類候補からルール化して既存の未分類明細へ自動適用できるようにする |
+| カテゴリ・ルール管理 | カテゴリと利用先名ルールを独立管理し、ルール作成時に一致する既存明細へ自動適用できるようにする |
 | 分析 | 月次推移、利用先別推移、固定費候補、少額高頻度候補を確認する |
 | データ管理 | インポート履歴、ファイル単位削除、エクスポートを扱う |
 
@@ -161,7 +161,6 @@ flowchart TD
 | Category | 支出カテゴリを管理する |
 | CategoryRule | 利用先名に基づく分類ルールを管理する |
 | ImportError | インポート時の不正行・変換エラーを記録または一時保持する |
-| AppSetting | 集計基準や表示設定など、アプリ設定を保持する |
 
 ### 4.2 主要テーブル
 
@@ -173,7 +172,6 @@ flowchart TD
 | categories | id, name, color, createdAt, updatedAt |
 | category_rules | id, matchType, pattern, categoryId, priority, createdAt, updatedAt |
 | import_errors | id, sourceFileId, rowNumber, errorType, message, rawColumns, createdAt |
-| app_settings | id, key, value, updatedAt |
 
 ### 4.3 主なリレーション
 
@@ -247,7 +245,7 @@ sequenceDiagram
 1. ルールを `priority` 昇順で取得する
 2. 対象明細の `merchantName` に対して `matchType` と `pattern` を評価する
 3. 最初に一致したルールの `categoryId` を明細へ設定する
-4. 手動設定済みカテゴリを上書きするかどうかは再適用時のオプションとする
+4. ルール作成時は一致する既存明細のカテゴリを自動更新する。再適用時は手動設定済みカテゴリを上書きするかどうかをオプションで指定できる
 5. 適用件数、変更件数、未分類件数を表示する
 
 #### ダッシュボード集計フロー
@@ -306,8 +304,6 @@ sequenceDiagram
 | 分類ルール | GET | `/api/v1/classification-candidates` | 未分類の利用先を件数順に集約して取得する |
 | 分類ルール | POST | `/api/v1/category-rules/reapply` | 既存明細に分類ルールを再適用する |
 | データ管理 | GET | `/api/v1/exports/transactions` | 明細データをCSVまたはJSONでエクスポートする |
-| 設定 | GET | `/api/v1/settings` | 集計基準などのアプリ設定を取得する |
-| 設定 | PATCH | `/api/v1/settings` | 集計基準などのアプリ設定を更新する |
 
 API設計上の補足:
 

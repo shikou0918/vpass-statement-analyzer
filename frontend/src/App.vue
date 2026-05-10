@@ -10,7 +10,6 @@ const navItems = [
   { to: '/transactions', label: '明細一覧' },
   { to: '/categories', label: 'カテゴリ・ルール' },
   { to: '/data', label: 'データ管理' },
-  { to: '/settings', label: '設定' },
 ]
 
 const title = computed(() => String(route.meta.title ?? 'インポート'))
