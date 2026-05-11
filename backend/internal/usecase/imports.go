@@ -77,7 +77,8 @@ func (a *App) CreateImportPreview(ctx context.Context, fileName string, r io.Rea
 
 	if month := billingMonthFromFileName(fileName); month != "" {
 		candidates := inferMapping(header, rows)
-		if !hasMappingTarget(candidates, "billingMonth") {
+		if !hasCompleteBillingMonthTarget(rows, candidates) {
+			header = appendSyntheticHeader(header, rows, "請求月")
 			rows = appendColumn(rows, month)
 		}
 	}
@@ -334,13 +335,37 @@ func appendColumn(rows [][]string, value string) [][]string {
 	return out
 }
 
-func hasMappingTarget(candidates []ImportMappingCandidate, target string) bool {
+func hasCompleteBillingMonthTarget(rows [][]string, candidates []ImportMappingCandidate) bool {
+	billingMonthIndex := -1
 	for _, candidate := range candidates {
-		if candidate.TargetField == target {
-			return true
+		if candidate.TargetField == "billingMonth" {
+			billingMonthIndex = candidate.SourceColumnIndex
+			break
 		}
 	}
-	return false
+	if billingMonthIndex < 0 {
+		return false
+	}
+	for _, row := range rows {
+		if billingMonthIndex >= len(row) || normalizeMonth(row[billingMonthIndex]) == "" {
+			return false
+		}
+	}
+	return true
+}
+
+func appendSyntheticHeader(header []string, rows [][]string, name string) []string {
+	width := 0
+	for _, row := range rows {
+		if len(row) > width {
+			width = len(row)
+		}
+	}
+	next := append([]string{}, header...)
+	for len(next) < width {
+		next = append(next, "")
+	}
+	return append(next, name)
 }
 
 func isCompactVpassRows(rows [][]string) bool {

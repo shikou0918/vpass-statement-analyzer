@@ -11,7 +11,6 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const file = ref<File | null>(null)
 const preview = ref<ImportPreview | null>(null)
 const confirmedMapping = ref<Record<string, string>>({})
-const saveMessage = ref('')
 const previewState = useAsyncState<ImportPreview>()
 const importState = useAsyncState<unknown>()
 
@@ -34,7 +33,6 @@ async function onSelect(event: Event) {
   file.value = selectedFile
   preview.value = null
   confirmedMapping.value = {}
-  saveMessage.value = ''
   if (selectedFile) {
     await previewFile(selectedFile)
   }
@@ -57,7 +55,6 @@ async function saveImport() {
   if (!preview.value || missingRequired.value.length > 0 || preview.value.duplicateFile) return
   const result = await importState.run(() => createImport(preview.value as ImportPreview, confirmedMapping.value))
   if (result) {
-    saveMessage.value = 'インポートを保存しました'
     await router.push('/transactions')
   }
 }
@@ -69,7 +66,6 @@ async function saveImport() {
       <div class="step-row">
         <span class="step active">1. ファイル選択</span>
         <span class="step" :class="{ active: preview }">2. プレビュー確認</span>
-        <span class="step" :class="{ active: saveMessage }">3. 保存結果</span>
       </div>
       <div class="toolbar">
         <button class="file-button" type="button" @click="openFileDialog">
