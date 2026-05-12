@@ -421,6 +421,36 @@ func TestCompactVpassImportSkipsMetadataAndUsesFileNameBillingMonth(t *testing.T
 	}
 }
 
+func TestMonthlySummaryIncludesPreviousMonthAmount(t *testing.T) {
+	router := newTestServer(t)
+	csvBody := strings.Join([]string{
+		"利用日,利用先,支払月,利用金額,請求金額",
+		"2026-04-01,前月店,2026-04,1000,1000",
+		"2026-05-01,当月店,2026-05,2500,2500",
+	}, "\n") + "\n"
+
+	preview := createPreview(t, router, csvBody)
+	createImportFromPreview(t, router, preview)
+
+	req := httptest.NewRequest(http.MethodGet, "/summaries/monthly?month=2026-05&basisDate=billingMonth&basisAmount=billedAmount", nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", res.Code, res.Body.String())
+	}
+	var body struct {
+		TotalAmount    int64 `json:"totalAmount"`
+		PreviousAmount int64 `json:"previousAmount"`
+		DiffAmount     int64 `json:"diffAmount"`
+	}
+	if err := json.Unmarshal(res.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode monthly summary: %v", err)
+	}
+	if body.TotalAmount != 2500 || body.PreviousAmount != 1000 || body.DiffAmount != 1500 {
+		t.Fatalf("unexpected monthly summary: %+v", body)
+	}
+}
+
 func createPreview(t *testing.T, router http.Handler, csvBody string) importPreviewResponse {
 	return createPreviewWithFileName(t, router, "vpass.csv", csvBody)
 }

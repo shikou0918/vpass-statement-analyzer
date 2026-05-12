@@ -1,6 +1,9 @@
 package usecase
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 type MonthlySummaryResponse struct {
 	Month            string       `json:"month"`
@@ -31,14 +34,32 @@ func (a *App) MonthlySummary(ctx context.Context, f SummaryFilter) (MonthlySumma
 	if err != nil {
 		return MonthlySummaryResponse{}, err
 	}
+	previousAmount, err := a.previousMonthAmount(ctx, f)
+	if err != nil {
+		return MonthlySummaryResponse{}, err
+	}
 	return MonthlySummaryResponse{
 		Month:            f.Month,
 		TotalAmount:      rows.TotalAmount,
-		PreviousAmount:   rows.PreviousAmount,
-		DiffAmount:       rows.TotalAmount - rows.PreviousAmount,
+		PreviousAmount:   previousAmount,
+		DiffAmount:       rows.TotalAmount - previousAmount,
 		TransactionCount: rows.TransactionCount,
 		DailyTrend:       rows.Daily,
 	}, nil
+}
+
+func (a *App) previousMonthAmount(ctx context.Context, f SummaryFilter) (int64, error) {
+	month, err := time.Parse("2006-01", f.Month)
+	if err != nil {
+		return 0, BadRequest("month は YYYY-MM 形式で指定してください", map[string]any{"field": "month"})
+	}
+	previousFilter := f
+	previousFilter.Month = month.AddDate(0, -1, 0).Format("2006-01")
+	rows, err := a.repos.Transactions().Summary(ctx, previousFilter)
+	if err != nil {
+		return 0, err
+	}
+	return rows.TotalAmount, nil
 }
 
 func (a *App) MerchantSummary(ctx context.Context, f SummaryFilter) (RankingSummaryResponse, error) {
