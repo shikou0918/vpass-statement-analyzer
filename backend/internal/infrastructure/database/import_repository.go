@@ -17,7 +17,7 @@ type importRepository struct {
 }
 
 func (r importRepository) CreateImport(ctx context.Context, file domain.ImportFile, mappings []domain.ImportMapping, errs []domain.ImportError) (domain.ImportFile, error) {
-	model := ImportFileModel{FileName: file.FileName, FileHash: file.FileHash, DetectedFormat: file.DetectedFormat, HasHeader: file.HasHeader, RowCount: file.RowCount, ImportedAt: time.Now()}
+	model := ImportFileModel{FileName: file.FileName, FileHash: file.FileHash, CreditCardID: file.CreditCardID, DetectedFormat: file.DetectedFormat, HasHeader: file.HasHeader, RowCount: file.RowCount, ImportedAt: time.Now()}
 	if err := r.db.WithContext(ctx).Create(&model).Error; err != nil {
 		return domain.ImportFile{}, err
 	}

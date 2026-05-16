@@ -36,6 +36,7 @@ export type ImportPreview = {
   previewId: string
   fileName: string
   fileHash: string
+  detectedCreditCardName?: string
   detectedFormat: string
   encoding: string
   hasHeader: boolean
@@ -49,6 +50,7 @@ export type ImportFile = {
   id: number
   fileName: string
   fileHash: string
+  creditCardId?: number | null
   detectedFormat: string
   hasHeader: boolean
   rowCount: number
@@ -58,6 +60,7 @@ export type ImportFile = {
 export type Transaction = {
   id: number
   sourceFileId: number
+  creditCardId?: number | null
   usageDate: string
   merchantName: string
   cardUser: string
@@ -82,6 +85,11 @@ export type CategoryRule = {
   pattern: string
   categoryId: number
   priority: number
+}
+
+export type CreditCard = {
+  id: number
+  displayName: string
 }
 
 export type ClassificationCandidate = {

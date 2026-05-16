@@ -1,16 +1,18 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { listCategories, listTransactions, updateTransaction } from '../api/client'
-import type { Category, Transaction } from '../api/types'
+import { listCategories, listCreditCards, listTransactions, updateTransaction } from '../api/client'
+import type { Category, CreditCard, Transaction } from '../api/types'
 
 const rows = ref<Transaction[]>([])
 const categories = ref<Category[]>([])
+const creditCards = ref<CreditCard[]>([])
 const loading = ref(false)
 const bulkSaving = ref(false)
 const error = ref('')
 const message = ref('')
 const page = ref(1)
 const billingMonth = ref('')
+const creditCardId = ref('')
 const keyword = ref('')
 const selectedIds = ref<Set<number>>(new Set())
 const bulkCategoryId = ref('')
@@ -18,6 +20,7 @@ const bulkCategoryId = ref('')
 const selectedRows = computed(() => rows.value.filter((row) => selectedIds.value.has(row.id)))
 const allRowsSelected = computed(() => rows.value.length > 0 && selectedIds.value.size === rows.value.length)
 const someRowsSelected = computed(() => selectedIds.value.size > 0 && !allRowsSelected.value)
+const creditCardNameById = computed(() => new Map(creditCards.value.map((card) => [card.id, card.displayName])))
 
 async function load() {
   loading.value = true
@@ -26,10 +29,12 @@ async function load() {
   try {
     const params = new URLSearchParams({ page: String(page.value), pageSize: '50', sort: 'usageDate', order: 'desc' })
     if (billingMonth.value) params.set('billingMonth', billingMonth.value)
+    if (creditCardId.value) params.set('creditCardId', creditCardId.value)
     if (keyword.value) params.set('keyword', keyword.value)
-    const [txResult, categoryResult] = await Promise.all([listTransactions(params), listCategories()])
+    const [txResult, categoryResult, cardResult] = await Promise.all([listTransactions(params), listCategories(), listCreditCards()])
     rows.value = txResult.items
     categories.value = categoryResult.items
+    creditCards.value = cardResult.items
     selectedIds.value = new Set()
   } catch {
     error.value = '明細を取得できませんでした'
@@ -103,6 +108,13 @@ onMounted(load)
         <input v-model="billingMonth" type="month" @change="page = 1; load()" />
       </label>
       <label>
+        カード
+        <select v-model="creditCardId" @change="page = 1; load()">
+          <option value="">すべて</option>
+          <option v-for="card in creditCards" :key="card.id" :value="String(card.id)">{{ card.displayName }}</option>
+        </select>
+      </label>
+      <label>
         キーワード
         <input v-model="keyword" type="search" @keydown.enter="page = 1; load()" />
       </label>
@@ -138,6 +150,7 @@ onMounted(load)
               />
             </th>
             <th>利用日</th>
+            <th>カード</th>
             <th>利用先</th>
             <th>請求月</th>
             <th>利用金額</th>
@@ -148,7 +161,7 @@ onMounted(load)
         </thead>
         <tbody>
           <tr v-if="rows.length === 0">
-            <td colspan="8" class="empty">明細がありません。</td>
+            <td colspan="9" class="empty">明細がありません。</td>
           </tr>
           <tr v-for="row in rows" :key="row.id">
             <td class="select-cell">
@@ -161,6 +174,7 @@ onMounted(load)
               />
             </td>
             <td>{{ String(row.usageDate).slice(0, 10) }}</td>
+            <td>{{ row.creditCardId ? creditCardNameById.get(row.creditCardId) ?? '-' : '-' }}</td>
             <td>{{ row.merchantName }}</td>
             <td>{{ row.billingMonth }}</td>
             <td>{{ row.usageAmount?.toLocaleString() ?? '-' }}</td>

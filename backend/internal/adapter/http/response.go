@@ -11,6 +11,7 @@ type importFileResponse struct {
 	ID             int64     `json:"id"`
 	FileName       string    `json:"fileName"`
 	FileHash       string    `json:"fileHash"`
+	CreditCardID   *int64    `json:"creditCardId"`
 	DetectedFormat string    `json:"detectedFormat"`
 	HasHeader      bool      `json:"hasHeader"`
 	RowCount       int       `json:"rowCount"`
@@ -27,6 +28,7 @@ type createImportResponse struct {
 type transactionResponse struct {
 	ID                    int64     `json:"id"`
 	SourceFileID          int64     `json:"sourceFileId"`
+	CreditCardID          *int64    `json:"creditCardId"`
 	UsageDate             time.Time `json:"usageDate"`
 	MerchantName          string    `json:"merchantName"`
 	CardUser              string    `json:"cardUser"`
@@ -59,11 +61,19 @@ type categoryRuleResponse struct {
 	UpdatedAt  time.Time `json:"updatedAt"`
 }
 
+type creditCardResponse struct {
+	ID          int64     `json:"id"`
+	DisplayName string    `json:"displayName"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
+}
+
 func importFileToResponse(item domain.ImportFile) importFileResponse {
 	return importFileResponse{
 		ID:             item.ID,
 		FileName:       item.FileName,
 		FileHash:       item.FileHash,
+		CreditCardID:   item.CreditCardID,
 		DetectedFormat: item.DetectedFormat,
 		HasHeader:      item.HasHeader,
 		RowCount:       item.RowCount,
@@ -84,6 +94,7 @@ func transactionToResponse(item domain.Transaction) transactionResponse {
 	return transactionResponse{
 		ID:                    item.ID,
 		SourceFileID:          item.SourceFileID,
+		CreditCardID:          item.CreditCardID,
 		UsageDate:             item.UsageDate,
 		MerchantName:          item.MerchantName,
 		CardUser:              item.CardUser,
@@ -118,6 +129,15 @@ func categoryRuleToResponse(item domain.CategoryRule) categoryRuleResponse {
 		Priority:   item.Priority,
 		CreatedAt:  item.CreatedAt,
 		UpdatedAt:  item.UpdatedAt,
+	}
+}
+
+func creditCardToResponse(item domain.CreditCard) creditCardResponse {
+	return creditCardResponse{
+		ID:          item.ID,
+		DisplayName: item.DisplayName,
+		CreatedAt:   item.CreatedAt,
+		UpdatedAt:   item.UpdatedAt,
 	}
 }
 

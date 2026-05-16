@@ -6,6 +6,7 @@ import type {
   CategorySummaryItem,
   ChartPoint,
   ClassificationCandidate,
+  CreditCard,
   ImportFile,
   ImportPreview,
   ListResponse,
@@ -58,12 +59,13 @@ export async function createImportPreview(file: File): Promise<ImportPreview> {
   return request<ImportPreview>('/import-previews', { method: 'POST', body })
 }
 
-export async function createImport(preview: ImportPreview, confirmedMapping: Record<string, string>) {
+export async function createImport(preview: ImportPreview, confirmedMapping: Record<string, string>, creditCardName: string) {
   return request('/imports', {
     method: 'POST',
     body: JSON.stringify({
       previewId: preview.previewId,
       fileHash: preview.fileHash,
+      creditCardName,
       confirmedMapping,
       options: { applyCategoryRules: true },
     }),
@@ -82,24 +84,35 @@ export function listTransactions(params: URLSearchParams): Promise<ListResponse<
   return request<ListResponse<Transaction>>(`/transactions?${params.toString()}`)
 }
 
+export function listCreditCards(): Promise<{ items: CreditCard[] }> {
+  return request<{ items: CreditCard[] }>('/credit-cards')
+}
+
 export function updateTransaction(id: number, body: { categoryId?: string | null; memo?: string; excludedFromAnalytics?: boolean }): Promise<Transaction> {
   return request<Transaction>(`/transactions/${id}`, { method: 'PATCH', body: JSON.stringify(body) })
 }
 
-export function getMonthlySummary(month: string): Promise<MonthlySummary> {
-  return request<MonthlySummary>(`/summaries/monthly?month=${encodeURIComponent(month)}&basisDate=billingMonth&basisAmount=billedAmount`)
+function appendCreditCard(path: string, creditCardId?: string) {
+  if (!creditCardId) return path
+  return `${path}&creditCardId=${encodeURIComponent(creditCardId)}`
 }
 
-export function getMerchantSummary(month: string): Promise<{ items: RankingItem[] }> {
-  return request<{ items: RankingItem[] }>(`/summaries/merchants?month=${encodeURIComponent(month)}&basisAmount=billedAmount`)
+export function getMonthlySummary(month: string, creditCardId?: string): Promise<MonthlySummary> {
+  return request<MonthlySummary>(
+    appendCreditCard(`/summaries/monthly?month=${encodeURIComponent(month)}&basisDate=billingMonth&basisAmount=billedAmount`, creditCardId),
+  )
 }
 
-export function getCategorySummary(month: string): Promise<{ items: CategorySummaryItem[] }> {
-  return request<{ items: CategorySummaryItem[] }>(`/summaries/categories?month=${encodeURIComponent(month)}&basisAmount=billedAmount`)
+export function getMerchantSummary(month: string, creditCardId?: string): Promise<{ items: RankingItem[] }> {
+  return request<{ items: RankingItem[] }>(appendCreditCard(`/summaries/merchants?month=${encodeURIComponent(month)}&basisAmount=billedAmount`, creditCardId))
 }
 
-export function getMonthlyTrends(): Promise<{ items: ChartPoint[] }> {
-  return request<{ items: ChartPoint[] }>('/analytics/monthly-trends?basisAmount=billedAmount')
+export function getCategorySummary(month: string, creditCardId?: string): Promise<{ items: CategorySummaryItem[] }> {
+  return request<{ items: CategorySummaryItem[] }>(appendCreditCard(`/summaries/categories?month=${encodeURIComponent(month)}&basisAmount=billedAmount`, creditCardId))
+}
+
+export function getMonthlyTrends(creditCardId?: string): Promise<{ items: ChartPoint[] }> {
+  return request<{ items: ChartPoint[] }>(appendCreditCard('/analytics/monthly-trends?basisAmount=billedAmount', creditCardId))
 }
 
 export function listCategories(): Promise<{ items: Category[] }> {

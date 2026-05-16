@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import Chart from 'chart.js/auto'
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
-import { getCategorySummary, getMerchantSummary, getMonthlySummary, getMonthlyTrends } from '../api/client'
-import type { CategorySummaryItem, ChartPoint, MonthlySummary, RankingItem } from '../api/types'
+import { getCategorySummary, getMerchantSummary, getMonthlySummary, getMonthlyTrends, listCreditCards } from '../api/client'
+import type { CategorySummaryItem, ChartPoint, CreditCard, MonthlySummary, RankingItem } from '../api/types'
 
 const month = ref(new Date().toISOString().slice(0, 7))
+const creditCardId = ref('')
 const loading = ref(false)
 const error = ref('')
 const summary = ref<MonthlySummary | null>(null)
 const merchants = ref<RankingItem[]>([])
 const categories = ref<CategorySummaryItem[]>([])
+const creditCards = ref<CreditCard[]>([])
 const monthlyTrends = ref<ChartPoint[]>([])
 const monthlyTrendCanvas = ref<HTMLCanvasElement | null>(null)
 let monthlyTrendChart: Chart | null = null
@@ -79,16 +81,18 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    const [monthly, merchantResult, categoryResult, monthlyTrendResult] = await Promise.all([
-      getMonthlySummary(month.value),
-      getMerchantSummary(month.value),
-      getCategorySummary(month.value),
-      getMonthlyTrends(),
+    const [monthly, merchantResult, categoryResult, monthlyTrendResult, cardResult] = await Promise.all([
+      getMonthlySummary(month.value, creditCardId.value),
+      getMerchantSummary(month.value, creditCardId.value),
+      getCategorySummary(month.value, creditCardId.value),
+      getMonthlyTrends(creditCardId.value),
+      listCreditCards(),
     ])
     summary.value = monthly
     merchants.value = merchantResult.items ?? []
     categories.value = categoryResult.items ?? []
     monthlyTrends.value = monthlyTrendResult.items ?? []
+    creditCards.value = cardResult.items ?? []
     await nextTick()
     renderMonthlyTrendChart()
   } catch {
@@ -107,7 +111,14 @@ onBeforeUnmount(() => monthlyTrendChart?.destroy())
     <div class="panel toolbar">
       <label>
         対象月
-        <input v-model="month" type="month" />
+        <input v-model="month" type="month" @change="load" />
+      </label>
+      <label>
+        カード
+        <select v-model="creditCardId" @change="load">
+          <option value="">すべて</option>
+          <option v-for="card in creditCards" :key="card.id" :value="String(card.id)">{{ card.displayName }}</option>
+        </select>
       </label>
       <button type="button" :disabled="loading" @click="load">再読み込み</button>
     </div>

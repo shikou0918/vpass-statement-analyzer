@@ -15,7 +15,7 @@ func Open(path string) (*gorm.DB, error) {
 }
 
 func Migrate(db *gorm.DB) error {
-	return db.AutoMigrate(&ImportFileModel{}, &ImportMappingModel{}, &ImportErrorModel{}, &TransactionModel{}, &CategoryModel{}, &CategoryRuleModel{})
+	return db.AutoMigrate(&CreditCardModel{}, &ImportFileModel{}, &ImportMappingModel{}, &ImportErrorModel{}, &TransactionModel{}, &CategoryModel{}, &CategoryRuleModel{})
 }
 
 type Repositories struct {
@@ -33,6 +33,9 @@ func (r *Repositories) Transactions() usecase.TransactionRepository {
 func (r *Repositories) Categories() usecase.CategoryRepository { return categoryRepository{db: r.db} }
 func (r *Repositories) CategoryRules() usecase.CategoryRuleRepository {
 	return categoryRuleRepository{db: r.db}
+}
+func (r *Repositories) CreditCards() usecase.CreditCardRepository {
+	return creditCardRepository{db: r.db}
 }
 
 type TxManager struct {

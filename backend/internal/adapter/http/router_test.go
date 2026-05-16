@@ -451,6 +451,51 @@ func TestMonthlySummaryIncludesPreviousMonthAmount(t *testing.T) {
 	}
 }
 
+func TestVpassImportsCanBeSeparatedByCreditCard(t *testing.T) {
+	router := newTestServer(t)
+	cardACSV := strings.Join([]string{
+		"市川　志功　様,4980-00**-****-****,Ｏｌｉｖｅゴールド／クレジット",
+		"2026/04/01,ローソン,1000,１,１,1000,",
+	}, "\n") + "\n"
+	cardBCSV := strings.Join([]string{
+		"市川　志功　様,1111-22**-****-****,別カード／クレジット",
+		"2026/04/01,ローソン,1000,１,１,1000,",
+	}, "\n") + "\n"
+
+	cardAPreview := createPreviewWithFileName(t, router, "202605-a.csv", cardACSV)
+	if !strings.Contains(cardAPreview.DetectedCreditCardName, "Ｏｌｉｖｅゴールド") {
+		t.Fatalf("expected credit card name to be detected, got %s", cardAPreview.DetectedCreditCardName)
+	}
+	cardAImport := createImportFromPreviewWithCardName(t, router, cardAPreview, cardAPreview.DetectedCreditCardName)
+	cardBPreview := createPreviewWithFileName(t, router, "202605-b.csv", cardBCSV)
+	cardBImport := createImportFromPreviewWithCardName(t, router, cardBPreview, cardBPreview.DetectedCreditCardName)
+
+	if cardAImport.ImportedCount != 1 || cardBImport.ImportedCount != 1 {
+		t.Fatalf("same transaction on different cards should import separately: %+v %+v", cardAImport, cardBImport)
+	}
+	if cardAImport.ImportFile.CreditCardID == nil || cardBImport.ImportFile.CreditCardID == nil || *cardAImport.ImportFile.CreditCardID == *cardBImport.ImportFile.CreditCardID {
+		t.Fatalf("imports should be linked to different credit cards: %+v %+v", cardAImport.ImportFile, cardBImport.ImportFile)
+	}
+
+	listReq := httptest.NewRequest(http.MethodGet, "/transactions?page=1&pageSize=50&billingMonth=2026-05&creditCardId="+strconv.FormatInt(*cardAImport.ImportFile.CreditCardID, 10), nil)
+	listRes := httptest.NewRecorder()
+	router.ServeHTTP(listRes, listReq)
+	if listRes.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", listRes.Code, listRes.Body.String())
+	}
+	var list struct {
+		Items []struct {
+			CreditCardID *int64 `json:"creditCardId"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(listRes.Body.Bytes(), &list); err != nil {
+		t.Fatalf("decode transactions: %v", err)
+	}
+	if len(list.Items) != 1 || list.Items[0].CreditCardID == nil || *list.Items[0].CreditCardID != *cardAImport.ImportFile.CreditCardID {
+		t.Fatalf("expected only card A transactions, got %+v", list.Items)
+	}
+}
+
 func createPreview(t *testing.T, router http.Handler, csvBody string) importPreviewResponse {
 	return createPreviewWithFileName(t, router, "vpass.csv", csvBody)
 }
@@ -498,6 +543,10 @@ func mappingHasTarget(mapping map[string]string, target string) bool {
 }
 
 func createImportFromPreview(t *testing.T, router http.Handler, preview importPreviewResponse) testCreateImportResponse {
+	return createImportFromPreviewWithCardName(t, router, preview, "")
+}
+
+func createImportFromPreviewWithCardName(t *testing.T, router http.Handler, preview importPreviewResponse, creditCardName string) testCreateImportResponse {
 	t.Helper()
 	mapping := map[string]string{}
 	for _, candidate := range preview.MappingCandidates {
@@ -506,6 +555,7 @@ func createImportFromPreview(t *testing.T, router http.Handler, preview importPr
 	importReqBody, err := json.Marshal(map[string]any{
 		"previewId":        preview.PreviewID,
 		"fileHash":         preview.FileHash,
+		"creditCardName":   creditCardName,
 		"confirmedMapping": mapping,
 		"options": map[string]any{
 			"applyCategoryRules": true,
@@ -529,11 +579,12 @@ func createImportFromPreview(t *testing.T, router http.Handler, preview importPr
 }
 
 type importPreviewResponse struct {
-	PreviewID         string                   `json:"previewId"`
-	FileHash          string                   `json:"fileHash"`
-	DuplicateFile     bool                     `json:"duplicateFile"`
-	MappingCandidates []importMappingCandidate `json:"mappingCandidates"`
-	PreviewRows       []importPreviewRow       `json:"previewRows"`
+	PreviewID              string                   `json:"previewId"`
+	FileHash               string                   `json:"fileHash"`
+	DetectedCreditCardName string                   `json:"detectedCreditCardName"`
+	DuplicateFile          bool                     `json:"duplicateFile"`
+	MappingCandidates      []importMappingCandidate `json:"mappingCandidates"`
+	PreviewRows            []importPreviewRow       `json:"previewRows"`
 }
 
 type importMappingCandidate struct {
@@ -551,5 +602,6 @@ type testCreateImportResponse struct {
 }
 
 type testImportFileResponse struct {
-	ID int64 `json:"id"`
+	ID           int64  `json:"id"`
+	CreditCardID *int64 `json:"creditCardId"`
 }

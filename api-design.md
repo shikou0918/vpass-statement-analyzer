@@ -92,7 +92,7 @@
 | GET | `/imports/{importFileId}` | `getImport` | インポート結果詳細を取得する |
 | DELETE | `/imports/{importFileId}` | `deleteImport` | 指定ファイル由来の明細・マッピング・エラー・履歴を削除する |
 
-`/import-previews` は DB 保存をしない。初期設計では `previewId` を返すが、これは短時間の一時参照として扱う。永続化するか、ファイルハッシュから再計算するか、フロントエンドが保存時に再度ファイルを送るかは実装時の未決事項とする。
+`/import-previews` は DB 保存をしない。`previewId` は短時間の一時参照として扱う。Vpassの先頭メタ行からクレジットカード名を推定できる場合は `detectedCreditCardName` を返す。`POST /imports` は `creditCardName` を任意で受け取り、指定された場合はカードマスタを作成または再利用して明細へ紐づける。
 
 ### 3.2 明細
 
@@ -102,7 +102,13 @@
 | GET | `/transactions/{transactionId}` | `getTransaction` | 明細1件を取得する |
 | PATCH | `/transactions/{transactionId}` | `updateTransaction` | カテゴリ、メモ、除外フラグなど編集可能項目を更新する |
 
-### 3.3 集計・分析
+### 3.3 クレジットカード
+
+| Method | Path | operationId | 概要 |
+|---|---|---|---|
+| GET | `/credit-cards` | `listCreditCards` | インポート済み明細に紐づくクレジットカード一覧を取得する |
+
+### 3.4 集計・分析
 
 | Method | Path | operationId | 概要 |
 |---|---|---|---|
@@ -121,8 +127,9 @@
 |---|---|---|
 | `basisDate` | `billingMonth` / `usageDate` | 集計対象期間の基準 |
 | `basisAmount` | `billedAmount` / `usageAmount` | 集計金額の基準 |
+| `creditCardId` | string | 指定カードに紐づく明細だけに絞り込む |
 
-### 3.4 カテゴリ・分類ルール
+### 3.5 カテゴリ・分類ルール
 
 | Method | Path | operationId | 概要 |
 |---|---|---|---|
@@ -210,6 +217,7 @@ Response:
 主な query:
 
 - `billingMonth`
+- `creditCardId`
 - `usageDateFrom`
 - `usageDateTo`
 - `merchantName`

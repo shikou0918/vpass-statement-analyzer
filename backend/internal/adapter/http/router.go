@@ -35,6 +35,7 @@ func NewRouter(app *usecase.App, allowedOrigin string) http.Handler {
 	mux.HandleFunc("GET /analytics/category-trends", h.getCategoryTrends)
 	mux.HandleFunc("GET /analytics/recurring-candidates", h.getRecurringCandidates)
 	mux.HandleFunc("GET /analytics/small-frequent-transactions", h.getSmallFrequentTransactions)
+	mux.HandleFunc("GET /credit-cards", h.listCreditCards)
 	mux.HandleFunc("GET /categories", h.listCategories)
 	mux.HandleFunc("POST /categories", h.createCategory)
 	mux.HandleFunc("PATCH /categories/", h.updateCategory)
@@ -133,6 +134,7 @@ func (h *Handler) listTransactions(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	filter := usecase.TransactionFilter{
 		BillingMonth:    q.Get("billingMonth"),
+		CreditCardID:    q.Get("creditCardId"),
 		UsageDateFrom:   q.Get("usageDateFrom"),
 		UsageDateTo:     q.Get("usageDateTo"),
 		MerchantName:    q.Get("merchantName"),
@@ -279,6 +281,15 @@ func (h *Handler) getSmallFrequentTransactions(w http.ResponseWriter, r *http.Re
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
+func (h *Handler) listCreditCards(w http.ResponseWriter, r *http.Request) {
+	items, err := h.app.ListCreditCards(r.Context())
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": mapResponses(items, creditCardToResponse)})
 }
 
 func (h *Handler) listCategories(w http.ResponseWriter, r *http.Request) {
@@ -445,9 +456,9 @@ func (h *Handler) exportTransactions(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	w.Header().Set("Content-Disposition", "attachment; filename=\"transactions.csv\"")
 	cw := csv.NewWriter(w)
-	_ = cw.Write([]string{"id", "usageDate", "merchantName", "billingMonth", "usageAmount", "billedAmount", "categoryId", "memo"})
+	_ = cw.Write([]string{"id", "creditCardId", "usageDate", "merchantName", "billingMonth", "usageAmount", "billedAmount", "categoryId", "memo"})
 	for _, item := range items {
-		_ = cw.Write([]string{strconv.FormatInt(item.ID, 10), item.UsageDate.Format("2006-01-02"), item.MerchantName, item.BillingMonth, intPtr(item.UsageAmount), intPtr(item.BilledAmount), intPtr(item.CategoryID), item.Memo})
+		_ = cw.Write([]string{strconv.FormatInt(item.ID, 10), intPtr(item.CreditCardID), item.UsageDate.Format("2006-01-02"), item.MerchantName, item.BillingMonth, intPtr(item.UsageAmount), intPtr(item.BilledAmount), intPtr(item.CategoryID), item.Memo})
 	}
 	cw.Flush()
 }
@@ -455,13 +466,14 @@ func (h *Handler) exportTransactions(w http.ResponseWriter, r *http.Request) {
 func summaryFilter(r *http.Request) usecase.SummaryFilter {
 	q := r.URL.Query()
 	return usecase.SummaryFilter{
-		Month:       q.Get("month"),
-		From:        q.Get("from"),
-		To:          q.Get("to"),
-		FromMonth:   q.Get("fromMonth"),
-		ToMonth:     q.Get("toMonth"),
-		BasisDate:   valueOr(q.Get("basisDate"), "billingMonth"),
-		BasisAmount: valueOr(q.Get("basisAmount"), "billedAmount"),
+		Month:        q.Get("month"),
+		CreditCardID: q.Get("creditCardId"),
+		From:         q.Get("from"),
+		To:           q.Get("to"),
+		FromMonth:    q.Get("fromMonth"),
+		ToMonth:      q.Get("toMonth"),
+		BasisDate:    valueOr(q.Get("basisDate"), "billingMonth"),
+		BasisAmount:  valueOr(q.Get("basisAmount"), "billedAmount"),
 	}
 }
 

@@ -6,6 +6,7 @@ type ImportFile struct {
 	ID             int64
 	FileName       string
 	FileHash       string
+	CreditCardID   *int64
 	DetectedFormat string
 	HasHeader      bool
 	RowCount       int
@@ -35,6 +36,7 @@ type ImportError struct {
 type Transaction struct {
 	ID                    int64
 	SourceFileID          int64
+	CreditCardID          *int64
 	UsageDate             time.Time
 	MerchantName          string
 	CardUser              string
@@ -67,4 +69,11 @@ type CategoryRule struct {
 	Priority   int
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
+}
+
+type CreditCard struct {
+	ID          int64
+	DisplayName string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }

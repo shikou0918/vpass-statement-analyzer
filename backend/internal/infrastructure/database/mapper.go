@@ -7,7 +7,7 @@ import (
 )
 
 func importFileToDomain(m ImportFileModel) domain.ImportFile {
-	return domain.ImportFile{ID: m.ID, FileName: m.FileName, FileHash: m.FileHash, DetectedFormat: m.DetectedFormat, HasHeader: m.HasHeader, RowCount: m.RowCount, ImportedAt: m.ImportedAt}
+	return domain.ImportFile{ID: m.ID, FileName: m.FileName, FileHash: m.FileHash, CreditCardID: m.CreditCardID, DetectedFormat: m.DetectedFormat, HasHeader: m.HasHeader, RowCount: m.RowCount, ImportedAt: m.ImportedAt}
 }
 
 func transactionToDomain(m TransactionModel) domain.Transaction {
@@ -16,6 +16,7 @@ func transactionToDomain(m TransactionModel) domain.Transaction {
 	return domain.Transaction{
 		ID:                    m.ID,
 		SourceFileID:          m.SourceFileID,
+		CreditCardID:          m.CreditCardID,
 		UsageDate:             m.UsageDate,
 		MerchantName:          m.MerchantName,
 		CardUser:              m.CardUser,
@@ -38,6 +39,7 @@ func transactionToModel(t domain.Transaction) TransactionModel {
 	return TransactionModel{
 		ID:                    t.ID,
 		SourceFileID:          t.SourceFileID,
+		CreditCardID:          t.CreditCardID,
 		UsageDate:             t.UsageDate,
 		MerchantName:          t.MerchantName,
 		CardUser:              t.CardUser,
@@ -61,4 +63,8 @@ func categoryToDomain(m CategoryModel) domain.Category {
 
 func ruleToDomain(m CategoryRuleModel) domain.CategoryRule {
 	return domain.CategoryRule{ID: m.ID, MatchType: m.MatchType, Pattern: m.Pattern, CategoryID: m.CategoryID, Priority: m.Priority, CreatedAt: m.CreatedAt, UpdatedAt: m.UpdatedAt}
+}
+
+func creditCardToDomain(m CreditCardModel) domain.CreditCard {
+	return domain.CreditCard{ID: m.ID, DisplayName: m.DisplayName, CreatedAt: m.CreatedAt, UpdatedAt: m.UpdatedAt}
 }

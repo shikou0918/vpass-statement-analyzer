@@ -68,10 +68,12 @@ func (a *App) CreateImportPreview(ctx context.Context, fileName string, r io.Rea
 	hasHeader := detectHeader(records[0])
 	header := []string{}
 	rows := records
+	detectedCreditCardName := ""
 	if hasHeader {
 		header = records[0]
 		rows = records[1:]
 	} else {
+		detectedCreditCardName = detectCreditCardName(rows)
 		rows = dropLeadingNonTransactionRows(rows)
 	}
 
@@ -88,16 +90,17 @@ func (a *App) CreateImportPreview(ctx context.Context, fileName string, r io.Rea
 	previewID := fmt.Sprintf("%x", sha256.Sum256([]byte(fileHash+time.Now().String())))[:24]
 
 	preview := ImportPreview{
-		PreviewID:         previewID,
-		FileName:          fileName,
-		FileHash:          fileHash,
-		DetectedFormat:    "vpass",
-		Encoding:          encodingName,
-		HasHeader:         hasHeader,
-		MappingCandidates: candidates,
-		PreviewRows:       previewRows,
-		Errors:            errors,
-		DuplicateFile:     duplicate,
+		PreviewID:              previewID,
+		FileName:               fileName,
+		FileHash:               fileHash,
+		DetectedCreditCardName: detectedCreditCardName,
+		DetectedFormat:         "vpass",
+		Encoding:               encodingName,
+		HasHeader:              hasHeader,
+		MappingCandidates:      candidates,
+		PreviewRows:            previewRows,
+		Errors:                 errors,
+		DuplicateFile:          duplicate,
 	}
 
 	previewStore.Lock()
@@ -134,9 +137,20 @@ func (a *App) CreateImport(ctx context.Context, in CreateImportInput) (CreateImp
 
 	var result CreateImportResult
 	err := a.tx.WithinTx(ctx, func(ctx context.Context, repos TxRepositories) error {
+		var creditCardID *int64
+		if cardName := strings.TrimSpace(in.CreditCardName); cardName != "" {
+			card, err := repos.CreditCards().FindOrCreateByDisplayName(ctx, cardName)
+			if err != nil {
+				return err
+			}
+			if card.ID != 0 {
+				creditCardID = &card.ID
+			}
+		}
 		file := domain.ImportFile{
 			FileName:       stored.Preview.FileName,
 			FileHash:       stored.Preview.FileHash,
+			CreditCardID:   creditCardID,
 			DetectedFormat: stored.Preview.DetectedFormat,
 			HasHeader:      stored.Preview.HasHeader,
 			RowCount:       len(stored.Rows),
@@ -148,7 +162,7 @@ func (a *App) CreateImport(ctx context.Context, in CreateImportInput) (CreateImp
 		if err != nil {
 			return err
 		}
-		txs, rowErrors := rowsToTransactions(createdFile.ID, stored.Rows, mapping)
+		txs, rowErrors := rowsToTransactions(createdFile.ID, creditCardID, stored.Rows, mapping)
 		if len(rowErrors) > 0 {
 			errs = append(errs, rowErrors...)
 		}
@@ -223,7 +237,7 @@ func decodeCSV(data []byte) (string, string, error) {
 
 func detectHeader(row []string) bool {
 	joined := strings.Join(row, ",")
-	headerHints := []string{"利用日", "利用先", "支払", "請求", "金額", "カード"}
+	headerHints := []string{"利用日", "利用先", "支払", "請求", "金額"}
 	for _, h := range headerHints {
 		if strings.Contains(joined, h) {
 			return true
@@ -303,6 +317,29 @@ func dropLeadingNonTransactionRows(rows [][]string) [][]string {
 		}
 	}
 	return rows
+}
+
+func detectCreditCardName(rows [][]string) string {
+	for _, row := range rows {
+		if len(row) == 0 {
+			continue
+		}
+		if _, err := parseDate(row[0]); err == nil {
+			return ""
+		}
+		parts := []string{}
+		for _, col := range row {
+			value := strings.TrimSpace(col)
+			if value == "" || strings.HasSuffix(value, "様") {
+				continue
+			}
+			parts = append(parts, value)
+		}
+		if len(parts) > 0 {
+			return strings.Join(parts, " ")
+		}
+	}
+	return ""
 }
 
 func billingMonthFromFileName(fileName string) string {
@@ -405,7 +442,7 @@ func validateRows(rows [][]string, candidates []ImportMappingCandidate) []Import
 	if missing := missingRequired(mapping); len(missing) > 0 {
 		return []ImportRowError{{RowNumber: 0, ErrorType: "MAPPING_REQUIRED", Message: "必須項目のマッピングが不足しています"}}
 	}
-	_, errs := rowsToTransactions(0, rows, mapping)
+	_, errs := rowsToTransactions(0, nil, rows, mapping)
 	out := make([]ImportRowError, 0, len(errs))
 	for _, e := range errs {
 		out = append(out, ImportRowError{RowNumber: e.RowNumber, ErrorType: e.ErrorType, Message: e.Message, RawColumns: e.RawColumns})
@@ -477,12 +514,12 @@ func toDomainErrors(errs []ImportRowError) []domain.ImportError {
 	return out
 }
 
-func rowsToTransactions(importID int64, rows [][]string, mapping map[int]string) ([]domain.Transaction, []domain.ImportError) {
+func rowsToTransactions(importID int64, creditCardID *int64, rows [][]string, mapping map[int]string) ([]domain.Transaction, []domain.ImportError) {
 	txs := []domain.Transaction{}
 	errs := []domain.ImportError{}
 	for i, row := range rows {
 		normalized := normalizeRow(row, mapping)
-		tx, err := normalizedToTransaction(importID, row, normalized)
+		tx, err := normalizedToTransaction(importID, creditCardID, row, normalized)
 		if err != nil {
 			errs = append(errs, domain.ImportError{SourceFileID: importID, RowNumber: i + 1, ErrorType: "ROW_VALIDATION", Message: err.Error(), RawColumns: row})
 			continue
@@ -502,7 +539,7 @@ func normalizeRow(row []string, mapping map[int]string) map[string]any {
 	return out
 }
 
-func normalizedToTransaction(importID int64, raw []string, normalized map[string]any) (domain.Transaction, error) {
+func normalizedToTransaction(importID int64, creditCardID *int64, raw []string, normalized map[string]any) (domain.Transaction, error) {
 	usageDate, err := parseDate(fmt.Sprint(normalized["usageDate"]))
 	if err != nil {
 		return domain.Transaction{}, fmt.Errorf("利用日を変換できません")
@@ -521,10 +558,11 @@ func normalizedToTransaction(importID int64, raw []string, normalized map[string
 		return domain.Transaction{}, fmt.Errorf("利用金額または請求金額が必要です")
 	}
 	rawJSON, _ := json.Marshal(raw)
-	dedupe := fmt.Sprintf("%s|%s|%s|%s|%s|%s|%s", usageDate.Format("2006-01-02"), merchant, normalized["cardUser"], normalized["paymentMethod"], billingMonth, intPtrString(usageAmount), intPtrString(billedAmount))
+	dedupe := fmt.Sprintf("%s|%s|%s|%s|%s|%s|%s|%s", intPtrString(creditCardID), usageDate.Format("2006-01-02"), merchant, normalized["cardUser"], normalized["paymentMethod"], billingMonth, intPtrString(usageAmount), intPtrString(billedAmount))
 	hash := sha256.Sum256([]byte(dedupe))
 	return domain.Transaction{
 		SourceFileID:  importID,
+		CreditCardID:  creditCardID,
 		UsageDate:     usageDate,
 		MerchantName:  merchant,
 		CardUser:      fmt.Sprint(normalized["cardUser"]),

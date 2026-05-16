@@ -40,21 +40,23 @@ type ImportRowError struct {
 }
 
 type ImportPreview struct {
-	PreviewID         string                   `json:"previewId"`
-	FileName          string                   `json:"fileName"`
-	FileHash          string                   `json:"fileHash"`
-	DetectedFormat    string                   `json:"detectedFormat"`
-	Encoding          string                   `json:"encoding"`
-	HasHeader         bool                     `json:"hasHeader"`
-	MappingCandidates []ImportMappingCandidate `json:"mappingCandidates"`
-	PreviewRows       []ImportPreviewRow       `json:"previewRows"`
-	Errors            []ImportRowError         `json:"errors"`
-	DuplicateFile     bool                     `json:"duplicateFile"`
+	PreviewID              string                   `json:"previewId"`
+	FileName               string                   `json:"fileName"`
+	FileHash               string                   `json:"fileHash"`
+	DetectedCreditCardName string                   `json:"detectedCreditCardName,omitempty"`
+	DetectedFormat         string                   `json:"detectedFormat"`
+	Encoding               string                   `json:"encoding"`
+	HasHeader              bool                     `json:"hasHeader"`
+	MappingCandidates      []ImportMappingCandidate `json:"mappingCandidates"`
+	PreviewRows            []ImportPreviewRow       `json:"previewRows"`
+	Errors                 []ImportRowError         `json:"errors"`
+	DuplicateFile          bool                     `json:"duplicateFile"`
 }
 
 type CreateImportInput struct {
 	PreviewID        string            `json:"previewId"`
 	FileHash         string            `json:"fileHash"`
+	CreditCardName   string            `json:"creditCardName"`
 	ConfirmedMapping map[string]string `json:"confirmedMapping"`
 	Options          struct {
 		ApplyCategoryRules bool `json:"applyCategoryRules"`
@@ -70,6 +72,7 @@ type CreateImportResult struct {
 
 type TransactionFilter struct {
 	BillingMonth    string
+	CreditCardID    string
 	UsageDateFrom   string
 	UsageDateTo     string
 	MerchantName    string
@@ -123,17 +126,18 @@ type CategoryRuleApplicationChange struct {
 }
 
 type SummaryFilter struct {
-	Month       string
-	From        string
-	To          string
-	FromMonth   string
-	ToMonth     string
-	BasisDate   string
-	BasisAmount string
-	Limit       int
-	Merchant    string
-	CategoryID  string
-	MaxAmount   int64
+	Month        string
+	CreditCardID string
+	From         string
+	To           string
+	FromMonth    string
+	ToMonth      string
+	BasisDate    string
+	BasisAmount  string
+	Limit        int
+	Merchant     string
+	CategoryID   string
+	MaxAmount    int64
 }
 
 type SummaryRows struct {

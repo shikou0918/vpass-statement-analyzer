@@ -249,12 +249,17 @@ h2 {
 }
 
 .toolbar label,
+.field-block,
 .inline-form label,
 .form-panel label {
   display: grid;
   gap: 6px;
   font-size: 13px;
   color: #475569;
+}
+
+.field-block {
+  margin-top: 14px;
 }
 
 .file-button {

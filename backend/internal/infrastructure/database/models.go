@@ -6,6 +6,7 @@ type ImportFileModel struct {
 	ID             int64 `gorm:"primaryKey"`
 	FileName       string
 	FileHash       string `gorm:"uniqueIndex"`
+	CreditCardID   *int64 `gorm:"index"`
 	DetectedFormat string
 	HasHeader      bool
 	RowCount       int
@@ -33,8 +34,9 @@ type ImportErrorModel struct {
 }
 
 type TransactionModel struct {
-	ID                    int64 `gorm:"primaryKey"`
-	SourceFileID          int64 `gorm:"index"`
+	ID                    int64  `gorm:"primaryKey"`
+	SourceFileID          int64  `gorm:"index"`
+	CreditCardID          *int64 `gorm:"index"`
 	UsageDate             time.Time
 	MerchantName          string `gorm:"index"`
 	CardUser              string
@@ -67,4 +69,11 @@ type CategoryRuleModel struct {
 	Priority   int    `gorm:"index"`
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
+}
+
+type CreditCardModel struct {
+	ID          int64  `gorm:"primaryKey"`
+	DisplayName string `gorm:"uniqueIndex"`
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }

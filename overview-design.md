@@ -156,6 +156,7 @@ flowchart TD
 | エンティティ | 説明 |
 |---|---|
 | Transaction | Vpass明細1行を正規化して保存する |
+| CreditCard | インポート元のクレジットカードを管理する |
 | ImportFile | インポートしたCSVファイル単位の履歴を管理する |
 | ImportMapping | インポート時に検出・確定した列マッピングを管理する |
 | Category | 支出カテゴリを管理する |
@@ -166,8 +167,9 @@ flowchart TD
 
 | テーブル | 主な項目 |
 |---|---|
-| transactions | id, sourceFileId, usageDate, merchantName, cardUser, paymentMethod, billingMonth, usageAmount, billedAmount, categoryId, rawColumns, dedupeKey, createdAt, updatedAt |
-| import_files | id, fileName, fileHash, detectedFormat, hasHeader, rowCount, importedAt |
+| transactions | id, sourceFileId, creditCardId, usageDate, merchantName, cardUser, paymentMethod, billingMonth, usageAmount, billedAmount, categoryId, rawColumns, dedupeKey, createdAt, updatedAt |
+| credit_cards | id, displayName, createdAt, updatedAt |
+| import_files | id, fileName, fileHash, creditCardId, detectedFormat, hasHeader, rowCount, importedAt |
 | import_mappings | id, sourceFileId, sourceColumnName, sourceColumnIndex, targetField, createdAt |
 | categories | id, name, color, createdAt, updatedAt |
 | category_rules | id, matchType, pattern, categoryId, priority, createdAt, updatedAt |
@@ -180,6 +182,8 @@ erDiagram
   import_files ||--o{ transactions : contains
   import_files ||--o{ import_mappings : uses
   import_files ||--o{ import_errors : has
+  credit_cards ||--o{ import_files : source
+  credit_cards ||--o{ transactions : paid_by
   categories ||--o{ transactions : classifies
   categories ||--o{ category_rules : target
 ```
@@ -188,7 +192,7 @@ erDiagram
 
 - `ImportFile.fileHash` で同一ファイルの再インポートを検出する
 - `Transaction.dedupeKey` で明細単位の重複登録を防ぐ
-- `dedupeKey` は、初期案として `usageDate + merchantName + cardUser + paymentMethod + billingMonth + usageAmount + billedAmount` から生成する
+- `dedupeKey` は、初期案として `creditCardId + usageDate + merchantName + cardUser + paymentMethod + billingMonth + usageAmount + billedAmount` から生成し、別カードの同一明細を別レコードとして扱う
 - `rawColumns` にはCSVの元行をJSONとして保持し、将来の再解釈に備える
 - `ImportMapping` は、ヘッダー名または列位置から確定した `usageDate`、`merchantName`、`billingMonth`、`usageAmount`、`billedAmount` などの対応関係を保存する
 - 必須項目は `usageDate`、`merchantName`、`billingMonth`、`usageAmount` または `billedAmount` とし、不足時は保存せずプレビューで確認させる

@@ -109,6 +109,9 @@ func (r transactionRepository) Summary(ctx context.Context, f usecase.SummaryFil
 		if f.Month != "" {
 			base = base.Where("billing_month = ?", f.Month)
 		}
+		if f.CreditCardID != "" {
+			base = base.Where("credit_card_id = ?", f.CreditCardID)
+		}
 		if f.From != "" {
 			base = base.Where("date(usage_date) >= ?", f.From)
 		}
@@ -300,6 +303,9 @@ func (r transactionRepository) ListClassificationCandidates(ctx context.Context,
 func applyTransactionFilter(query *gorm.DB, f usecase.TransactionFilter) *gorm.DB {
 	if f.BillingMonth != "" {
 		query = query.Where("billing_month = ?", f.BillingMonth)
+	}
+	if f.CreditCardID != "" {
+		query = query.Where("credit_card_id = ?", f.CreditCardID)
 	}
 	if f.UsageDateFrom != "" {
 		query = query.Where("date(usage_date) >= ?", f.UsageDateFrom)

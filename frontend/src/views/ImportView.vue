@@ -11,6 +11,7 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const file = ref<File | null>(null)
 const preview = ref<ImportPreview | null>(null)
 const confirmedMapping = ref<Record<string, string>>({})
+const creditCardName = ref('')
 const previewState = useAsyncState<ImportPreview>()
 const importState = useAsyncState<unknown>()
 
@@ -33,6 +34,7 @@ async function onSelect(event: Event) {
   file.value = selectedFile
   preview.value = null
   confirmedMapping.value = {}
+  creditCardName.value = ''
   if (selectedFile) {
     await previewFile(selectedFile)
   }
@@ -46,6 +48,7 @@ async function previewFile(selectedFile: File) {
   const result = await previewState.run(() => createImportPreview(selectedFile))
   if (!result || file.value !== selectedFile) return
   preview.value = result
+  creditCardName.value = result.detectedCreditCardName ?? ''
   confirmedMapping.value = Object.fromEntries(
     result.mappingCandidates.map((candidate: ImportMappingCandidate) => [String(candidate.sourceColumnIndex), candidate.targetField]),
   )
@@ -53,7 +56,7 @@ async function previewFile(selectedFile: File) {
 
 async function saveImport() {
   if (!preview.value || missingRequired.value.length > 0 || preview.value.duplicateFile) return
-  const result = await importState.run(() => createImport(preview.value as ImportPreview, confirmedMapping.value))
+  const result = await importState.run(() => createImport(preview.value as ImportPreview, confirmedMapping.value, creditCardName.value))
   if (result) {
     await router.push('/transactions')
   }
@@ -85,6 +88,10 @@ async function saveImport() {
         <div><span>header</span><strong>{{ preview.hasHeader ? 'あり' : 'なし' }}</strong></div>
         <div><span>duplicate</span><strong>{{ preview.duplicateFile ? 'あり' : 'なし' }}</strong></div>
       </div>
+      <label class="field-block">
+        クレジットカード
+        <input v-model="creditCardName" type="text" placeholder="例: Olive ゴールド / 個人用" />
+      </label>
 
       <p v-if="preview.duplicateFile" class="warning-line">同一ファイルが保存済みです。保存はできません。</p>
       <p v-if="missingRequired.length > 0" class="warning-line">不足: {{ missingRequired.join(', ') }}</p>

@@ -11,6 +11,7 @@ type TxRepositories interface {
 	Transactions() TransactionRepository
 	Categories() CategoryRepository
 	CategoryRules() CategoryRuleRepository
+	CreditCards() CreditCardRepository
 }
 
 type TxManager interface {
@@ -53,4 +54,9 @@ type CategoryRuleRepository interface {
 	Create(ctx context.Context, r domain.CategoryRule) (domain.CategoryRule, error)
 	Update(ctx context.Context, id int64, in CategoryRuleInput) (*domain.CategoryRule, error)
 	Delete(ctx context.Context, id int64) error
+}
+
+type CreditCardRepository interface {
+	List(ctx context.Context) ([]domain.CreditCard, error)
+	FindOrCreateByDisplayName(ctx context.Context, displayName string) (domain.CreditCard, error)
 }
