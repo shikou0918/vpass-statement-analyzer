@@ -90,6 +90,7 @@
 | POST | `/imports` | `createImport` | 確定マッピングをもとに CSV を保存する |
 | GET | `/imports` | `listImports` | インポート履歴を取得する |
 | GET | `/imports/{importFileId}` | `getImport` | インポート結果詳細を取得する |
+| PATCH | `/imports/{importFileId}` | `updateImport` | 既存インポートへクレジットカードを後付け設定する |
 | DELETE | `/imports/{importFileId}` | `deleteImport` | 指定ファイル由来の明細・マッピング・エラー・履歴を削除する |
 
 `/import-previews` は DB 保存をしない。`previewId` は短時間の一時参照として扱う。Vpassの先頭メタ行からクレジットカード名を推定できる場合は `detectedCreditCardName` を返す。`POST /imports` は `creditCardName` を任意で受け取り、指定された場合はカードマスタを作成または再利用して明細へ紐づける。
@@ -196,7 +197,15 @@ Response:
 
 保存前にサーバー側で再検証する。`fileHash` が既に存在する場合は `409` を返す。
 
-### 4.3 `DELETE /imports/{importFileId}`
+### 4.3 `PATCH /imports/{importFileId}`
+
+Request:
+
+- `creditCardName`
+
+指定されたカード名をカードマスタへ作成または再利用し、対象 `ImportFile` と対象ファイル由来の既存 `Transaction` へ同じクレジットカードを一括反映する。空文字列を指定した場合はカード紐づけを解除する。
+
+### 4.4 `DELETE /imports/{importFileId}`
 
 Response:
 
@@ -212,7 +221,7 @@ Response:
 
 削除後は同一 `fileHash` のCSVを再度インポートできる。削除処理はトランザクション内で実行し、一部だけ削除された状態を残さない。
 
-### 4.4 `GET /transactions`
+### 4.5 `GET /transactions`
 
 主な query:
 

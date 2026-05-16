@@ -496,6 +496,50 @@ func TestVpassImportsCanBeSeparatedByCreditCard(t *testing.T) {
 	}
 }
 
+func TestImportCreditCardCanBeUpdatedAfterImport(t *testing.T) {
+	router := newTestServer(t)
+	preview := createPreview(t, router, "利用日,利用先,支払月,利用金額,請求金額\n2026-05-01,ローソン,2026-05,1000,1000\n")
+	imported := createImportFromPreview(t, router, preview)
+	if imported.ImportFile.CreditCardID != nil {
+		t.Fatalf("new import should not have a card yet: %+v", imported.ImportFile)
+	}
+
+	updateReq := httptest.NewRequest(http.MethodPatch, "/imports/"+strconv.FormatInt(imported.ImportFile.ID, 10), strings.NewReader(`{"creditCardName":"Olive ゴールド"}`))
+	updateReq.Header.Set("Content-Type", "application/json")
+	updateRes := httptest.NewRecorder()
+	router.ServeHTTP(updateRes, updateReq)
+	if updateRes.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", updateRes.Code, updateRes.Body.String())
+	}
+	var updated struct {
+		CreditCardID *int64 `json:"creditCardId"`
+	}
+	if err := json.Unmarshal(updateRes.Body.Bytes(), &updated); err != nil {
+		t.Fatalf("decode updated import: %v", err)
+	}
+	if updated.CreditCardID == nil {
+		t.Fatal("updated import should have credit card id")
+	}
+
+	listReq := httptest.NewRequest(http.MethodGet, "/transactions?page=1&pageSize=50&creditCardId="+strconv.FormatInt(*updated.CreditCardID, 10), nil)
+	listRes := httptest.NewRecorder()
+	router.ServeHTTP(listRes, listReq)
+	if listRes.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", listRes.Code, listRes.Body.String())
+	}
+	var list struct {
+		Items []struct {
+			CreditCardID *int64 `json:"creditCardId"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(listRes.Body.Bytes(), &list); err != nil {
+		t.Fatalf("decode transactions: %v", err)
+	}
+	if len(list.Items) != 1 || list.Items[0].CreditCardID == nil || *list.Items[0].CreditCardID != *updated.CreditCardID {
+		t.Fatalf("expected imported transactions to receive card id, got %+v", list.Items)
+	}
+}
+
 func createPreview(t *testing.T, router http.Handler, csvBody string) importPreviewResponse {
 	return createPreviewWithFileName(t, router, "vpass.csv", csvBody)
 }

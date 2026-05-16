@@ -80,6 +80,17 @@ func (r importRepository) List(ctx context.Context, page, pageSize int) ([]domai
 	return items, total, nil
 }
 
+func (r importRepository) UpdateCreditCard(ctx context.Context, id int64, creditCardID *int64) (*domain.ImportFile, error) {
+	res := r.db.WithContext(ctx).Model(&ImportFileModel{}).Where("id = ?", id).Update("credit_card_id", creditCardID)
+	if res.Error != nil {
+		return nil, res.Error
+	}
+	if res.RowsAffected == 0 {
+		return nil, usecase.NotFound("インポートが見つかりません")
+	}
+	return r.FindByID(ctx, id)
+}
+
 func (r importRepository) Delete(ctx context.Context, id int64) error {
 	if err := r.db.WithContext(ctx).Where("source_file_id = ?", id).Delete(&ImportMappingModel{}).Error; err != nil {
 		return err

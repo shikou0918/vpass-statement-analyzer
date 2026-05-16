@@ -211,6 +211,33 @@ func (a *App) GetImport(ctx context.Context, id int64) (*domain.ImportFile, erro
 	return a.repos.Imports().FindByID(ctx, id)
 }
 
+func (a *App) UpdateImportCreditCard(ctx context.Context, id int64, in UpdateImportCreditCardInput) (*domain.ImportFile, error) {
+	var updated *domain.ImportFile
+	err := a.tx.WithinTx(ctx, func(ctx context.Context, repos TxRepositories) error {
+		if _, err := repos.Imports().FindByID(ctx, id); err != nil {
+			return err
+		}
+		var creditCardID *int64
+		if cardName := strings.TrimSpace(in.CreditCardName); cardName != "" {
+			card, err := repos.CreditCards().FindOrCreateByDisplayName(ctx, cardName)
+			if err != nil {
+				return err
+			}
+			creditCardID = &card.ID
+		}
+		item, err := repos.Imports().UpdateCreditCard(ctx, id, creditCardID)
+		if err != nil {
+			return err
+		}
+		if err := repos.Transactions().UpdateCreditCardByImportID(ctx, id, creditCardID); err != nil {
+			return err
+		}
+		updated = item
+		return nil
+	})
+	return updated, err
+}
+
 func (a *App) DeleteImport(ctx context.Context, id int64) error {
 	return a.tx.WithinTx(ctx, func(ctx context.Context, repos TxRepositories) error {
 		if _, err := repos.Imports().FindByID(ctx, id); err != nil {

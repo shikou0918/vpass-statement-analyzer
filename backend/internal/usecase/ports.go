@@ -27,6 +27,7 @@ type ImportRepository interface {
 	FindByHash(ctx context.Context, hash string) (*domain.ImportFile, error)
 	FindByID(ctx context.Context, id int64) (*domain.ImportFile, error)
 	List(ctx context.Context, page, pageSize int) ([]domain.ImportFile, int64, error)
+	UpdateCreditCard(ctx context.Context, id int64, creditCardID *int64) (*domain.ImportFile, error)
 	Delete(ctx context.Context, id int64) error
 }
 
@@ -35,6 +36,7 @@ type TransactionRepository interface {
 	List(ctx context.Context, f TransactionFilter) ([]domain.Transaction, int64, error)
 	FindByID(ctx context.Context, id int64) (*domain.Transaction, error)
 	UpdateEditable(ctx context.Context, id int64, in UpdateTransactionInput) (*domain.Transaction, error)
+	UpdateCreditCardByImportID(ctx context.Context, importID int64, creditCardID *int64) error
 	DeleteByImportID(ctx context.Context, importID int64) error
 	Summary(ctx context.Context, f SummaryFilter) (SummaryRows, error)
 	ApplyRule(ctx context.Context, rule domain.CategoryRule, overwrite bool) (matched int, updated int, err error)

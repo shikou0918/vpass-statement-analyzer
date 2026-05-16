@@ -285,6 +285,7 @@ sequenceDiagram
 | CSVインポート | POST | `/api/v1/imports` | プレビュー済みCSVを保存し、ImportFile/Transaction/ImportErrorを作成する |
 | インポート履歴 | GET | `/api/v1/imports` | インポート済みファイル一覧を取得する |
 | インポート履歴 | GET | `/api/v1/imports/{importFileId}` | インポートファイル単位の件数、エラー、取り込み結果を取得する |
+| インポート履歴 | PATCH | `/api/v1/imports/{importFileId}` | 既存インポートへクレジットカードを後付け設定し、配下の明細へ反映する |
 | インポート履歴 | DELETE | `/api/v1/imports/{importFileId}` | 指定ファイル由来の明細、マッピング、エラー、インポート履歴を削除する |
 | 明細 | GET | `/api/v1/transactions` | 年月、利用先、カテゴリ、金額範囲、キーワードで明細を検索する |
 | 明細 | GET | `/api/v1/transactions/{transactionId}` | 明細1件の詳細を取得する |

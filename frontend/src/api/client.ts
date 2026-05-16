@@ -80,6 +80,10 @@ export function deleteImport(id: number): Promise<void> {
   return request<void>(`/imports/${id}`, { method: 'DELETE' })
 }
 
+export function updateImportCreditCard(id: number, creditCardName: string): Promise<ImportFile> {
+  return request<ImportFile>(`/imports/${id}`, { method: 'PATCH', body: JSON.stringify({ creditCardName }) })
+}
+
 export function listTransactions(params: URLSearchParams): Promise<ListResponse<Transaction>> {
   return request<ListResponse<Transaction>>(`/transactions?${params.toString()}`)
 }

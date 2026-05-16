@@ -2,6 +2,8 @@ package database
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"regexp"
@@ -91,6 +93,25 @@ func (r transactionRepository) UpdateEditable(ctx context.Context, id int64, in 
 		return nil, usecase.NotFound("明細が見つかりません")
 	}
 	return r.FindByID(ctx, id)
+}
+
+func (r transactionRepository) UpdateCreditCardByImportID(ctx context.Context, importID int64, creditCardID *int64) error {
+	var models []TransactionModel
+	if err := r.db.WithContext(ctx).Where("source_file_id = ?", importID).Find(&models).Error; err != nil {
+		return err
+	}
+	for _, model := range models {
+		model.CreditCardID = creditCardID
+		model.DedupeKey = transactionDedupeKey(model)
+		if err := r.db.WithContext(ctx).Model(&TransactionModel{}).Where("id = ?", model.ID).Updates(map[string]any{
+			"credit_card_id": creditCardID,
+			"dedupe_key":     model.DedupeKey,
+			"updated_at":     time.Now(),
+		}).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (r transactionRepository) DeleteByImportID(ctx context.Context, importID int64) error {
@@ -364,4 +385,26 @@ func matchRule(rule domain.CategoryRule, merchant string) bool {
 	default:
 		return false
 	}
+}
+
+func transactionDedupeKey(model TransactionModel) string {
+	dedupe := fmt.Sprintf("%s|%s|%s|%s|%s|%s|%s|%s",
+		intPtrString(model.CreditCardID),
+		model.UsageDate.Format("2006-01-02"),
+		model.MerchantName,
+		model.CardUser,
+		model.PaymentMethod,
+		model.BillingMonth,
+		intPtrString(model.UsageAmount),
+		intPtrString(model.BilledAmount),
+	)
+	hash := sha256.Sum256([]byte(dedupe))
+	return hex.EncodeToString(hash[:])
+}
+
+func intPtrString(v *int64) string {
+	if v == nil {
+		return ""
+	}
+	return fmt.Sprintf("%d", *v)
 }

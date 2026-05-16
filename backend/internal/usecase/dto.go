@@ -70,6 +70,10 @@ type CreateImportResult struct {
 	ErrorCount            int               `json:"errorCount"`
 }
 
+type UpdateImportCreditCardInput struct {
+	CreditCardName string `json:"creditCardName"`
+}
+
 type TransactionFilter struct {
 	BillingMonth    string
 	CreditCardID    string

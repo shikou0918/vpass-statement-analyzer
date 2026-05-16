@@ -23,6 +23,7 @@ func NewRouter(app *usecase.App, allowedOrigin string) http.Handler {
 	mux.HandleFunc("GET /imports", h.listImports)
 	mux.HandleFunc("POST /imports", h.createImport)
 	mux.HandleFunc("GET /imports/", h.getImport)
+	mux.HandleFunc("PATCH /imports/", h.updateImport)
 	mux.HandleFunc("DELETE /imports/", h.deleteImport)
 	mux.HandleFunc("GET /transactions", h.listTransactions)
 	mux.HandleFunc("GET /transactions/", h.getTransaction)
@@ -111,6 +112,23 @@ func (h *Handler) getImport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	item, err := h.app.GetImport(r.Context(), id)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, importFileToResponse(*item))
+}
+
+func (h *Handler) updateImport(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r, "/imports/")
+	if !ok {
+		return
+	}
+	var in usecase.UpdateImportCreditCardInput
+	if !decodeJSON(w, r, &in) {
+		return
+	}
+	item, err := h.app.UpdateImportCreditCard(r.Context(), id, in)
 	if err != nil {
 		writeError(w, err)
 		return
